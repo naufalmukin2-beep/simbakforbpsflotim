@@ -2,7 +2,7 @@ import { supabase } from './supabaseClient.js'
 
 export const DEFAULT_PHOTO = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80'
 
-// Mapping helper (DB snake_case -> UI camelCase)
+// ---------- Mapping helpers (DB snake_case -> UI camelCase) ----------
 function mapProfile(p) {
   return {
     id: p.id,
@@ -21,14 +21,14 @@ function mapProfile(p) {
 function mapActivity(a) {
   return {
     id: a.id,
-    name: a.name || 'Kegiatan Tanpa Nama',
+    name: a.name,
     empId: a.assignee_id,
-    normVal: Number(a.norma_waktu) || 0,
-    normUnit: a.norma_unit || 'jam',
-    volume: Number(a.volume) || 0,
+    normVal: Number(a.norma_waktu),
+    normUnit: a.norma_unit,
+    volume: Number(a.volume),
     startDate: a.start_date ? a.start_date.substring(0, 16) : '',
     endDate: a.end_date ? a.end_date.substring(0, 16) : '',
-    progress: Number(a.progress) || 0
+    progress: a.progress
   }
 }
 
@@ -61,12 +61,12 @@ export async function fetchProfileByUserId(userId) {
   return data ? mapProfile(data) : null
 }
 
-export async function completeProfile(userId, { fullName, nip, timKerja, jabatan, avatarUrl, email }) {
+// data.js (Ganti fungsi completeProfile dengan kode ini)
+export async function completeProfile(userId, { fullName, nip, timKerja, jabatan, avatarUrl }) {
   const { data, error } = await supabase
     .from('profiles')
     .upsert({
       user_id: userId,
-      email: email,
       full_name: fullName,
       nip: nip,
       tim_kerja: timKerja,
@@ -79,6 +79,28 @@ export async function completeProfile(userId, { fullName, nip, timKerja, jabatan
 
   if (error) throw error
   return data ? mapProfile(data) : null
+}
+
+// Dipakai Admin untuk menambahkan pegawai langsung dari menu Direktori
+// Pegawai, TANPA akun login (user_id kosong). Kalau pegawai itu nanti
+// daftar sendiri, dia akan dapat baris profil baru yang terpisah --
+// admin tinggal hapus salah satu manual kalau terjadi duplikat.
+export async function adminCreateEmployee({ fullName, nip, timKerja, jabatan }) {
+  const { data, error } = await supabase
+    .from('profiles')
+    .insert({
+      full_name: fullName,
+      nip,
+      tim_kerja: timKerja,
+      jabatan,
+      is_admin: false,
+      profile_completed: true
+    })
+    .select()
+    .single()
+
+  if (error) throw error
+  return mapProfile(data)
 }
 
 export async function updateOwnProfile(userId, { fullName, nip, avatarUrl }) {
