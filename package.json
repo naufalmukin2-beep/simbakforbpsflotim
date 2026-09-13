@@ -1,0 +1,17 @@
+{
+  "name": "simbak",
+  "version": "1.0.0",
+  "description": "SIMBAK - Sistem Informasi Manajemen Beban Kerja BPS Kabupaten Flores Timur",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.4"
+  },
+  "devDependencies": {
+    "vite": "^5.4.10"
+  }
+}

@@ -1,0 +1,849 @@
+<!DOCTYPE html>
+<html lang="id" class="h-full bg-slate-50">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SIMBAK | BPS Kabupaten Flores Timur</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Font Plus Jakarta Sans -->
+    <!-- Google Font Plus Jakarta Sans -->
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Plus Jakarta Sans', 'sans-serif'],
+                    },
+                    colors: {
+                        bps: {
+                            navy: '#002B49',
+                            blue: '#007BFF',
+                            accent: '#F39C12',
+                            light: '#EBF3FA',
+                            dark: '#001A2D',
+                            teal: '#00A896',
+                            red: '#E63946',
+                            yellow: '#FFB703'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #f1f5f9; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        .animate-fade-in { animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        /* Dark Mode Overrides */
+        html.dark body { background-color: #0f172a; color: #f8fafc; }
+        html.dark main { background-color: #0f172a; }
+        html.dark header { background-color: #1e293b; border-color: #334155; color: #ffffff; }
+        html.dark .bg-white { background-color: #1e293b !important; color: #f8fafc !important; border-color: #334155 !important; }
+        html.dark .bg-slate-50 { background-color: #0f172a !important; color: #f8fafc !important; }
+        html.dark .bg-slate-100 { background-color: #334155 !important; color: #f8fafc !important; }
+        html.dark .text-slate-800 { color: #f8fafc !important; }
+        html.dark .text-slate-700 { color: #e2e8f0 !important; }
+        html.dark .text-slate-600 { color: #cbd5e1 !important; }
+        html.dark .border-slate-200, html.dark .border-slate-100 { border-color: #334155 !important; }
+        html.dark input, html.dark select { background-color: #0f172a !important; color: #ffffff !important; border-color: #475569 !important; }
+
+        .site-footer {
+            background-color: #111625;
+            color: #94a3b8;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-size: 0.88rem;
+            width: 100%;
+        }
+
+        .footer-top-bar { height: 3px; background-color: #eab308; width: 100%; }
+        .footer-container { max-width: 1200px; margin: 0 auto; padding: 40px 20px 20px 20px; }
+        .footer-grid { display: grid; grid-template-columns: 1.3fr 0.8fr 1.2fr 1fr; gap: 32px; margin-bottom: 30px; }
+        .footer-brand { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+        .footer-logo { height: 38px; width: auto; }
+        .brand-text h3 { color: #ffffff; font-size: 1.05rem; font-weight: 700; margin: 0; line-height: 1.2; }
+        .brand-text p { color: #94a3b8; font-size: 0.82rem; margin: 2px 0 0 0; }
+        .brand-desc { line-height: 1.6; color: #94a3b8; font-size: 0.85rem; }
+        .col-title { color: #ffffff; font-size: 1rem; font-weight: 600; margin: 0 0 16px 0; position: relative; display: inline-block; }
+        .col-title::after { content: ''; display: block; width: 32px; height: 3px; background-color: #eab308; margin-top: 6px; border-radius: 2px; }
+        .footer-links { list-style: none; padding: 0; margin: 0; }
+        .footer-links li { margin-bottom: 12px; }
+        .footer-links a { color: #94a3b8; text-decoration: none; transition: color 0.2s ease; }
+        .footer-links a:hover { color: #ffffff; }
+        .contact-info { list-style: none; padding: 0; margin: 0; }
+        .contact-info li { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 14px; line-height: 1.5; }
+        .contact-icon { color: #eab308; margin-top: 3px; font-size: 0.95rem; }
+        .social-desc { margin: 0 0 16px 0; line-height: 1.5; font-size: 0.85rem; }
+        .social-icons { display: flex; gap: 10px; }
+        .social-btn { width: 38px; height: 38px; border-radius: 50%; background-color: #1e293b; color: #94a3b8; display: flex; align-items: center; justify-content: center; text-decoration: none; transition: all 0.2s ease; }
+        .social-btn:hover { background-color: #eab308; color: #0f172a; }
+        .footer-bottom { border-top: 1px solid #1e293b; padding-top: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; font-size: 0.78rem; color: #64748b; }
+        .footer-bottom p { margin: 0; }
+        .legal-links { display: flex; gap: 16px; }
+        .legal-links a { color: #64748b; text-decoration: none; }
+        .legal-links a:hover { color: #94a3b8; }
+
+        @media (max-width: 900px) { .footer-grid { grid-template-columns: 1fr 1fr; } }
+        @media (max-width: 550px) { .footer-grid { grid-template-columns: 1fr; } .footer-bottom { flex-direction: column; align-items: flex-start; } }
+    </style>
+</head>
+<body class="h-full font-sans text-slate-800 antialiased bg-slate-50">
+
+    <!-- AUTH SCREEN -->
+    <div id="auth-screen" class="fixed inset-0 z-50 bg-bps-navy flex items-center justify-center p-4 overflow-y-auto">
+        <div class="w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden animate-fade-in my-8">
+            <div class="bg-bps-navy p-6 text-white text-center border-b border-slate-700/50 relative">
+                <div class="w-16 h-16 bg-white rounded-2xl p-2 mx-auto mb-3 shadow-lg flex items-center justify-center">
+                    <svg class="w-full h-full text-bps-navy" viewBox="0 0 100 100" fill="currentColor">
+                        <rect width="100" height="100" rx="20" fill="#002B49"/>
+                        <path d="M20 70 L50 20 L80 70 Z" fill="#007BFF"/>
+                        <path d="M35 70 L50 45 L65 70 Z" fill="#F39C12"/>
+                        <circle cx="50" cy="78" r="7" fill="#00A896"/>
+                    </svg>
+                </div>
+                <h2 class="text-2xl font-extrabold tracking-wide">SIMBAK</h2>
+                <p class="text-xs text-slate-300 font-medium mt-1">BPS Kabupaten Flores Timur • Satker 5309</p>
+                
+                <div class="flex bg-bps-dark/60 p-1 rounded-xl mt-6 border border-slate-700/60 text-xs font-semibold">
+                    <button onclick="toggleAuthTab('login')" id="tab-btn-login" class="flex-1 py-2 rounded-lg bg-bps-blue text-white transition shadow">Masuk / Login</button>
+                    <button onclick="toggleAuthTab('register')" id="tab-btn-register" class="flex-1 py-2 rounded-lg text-slate-300 hover:text-white transition">Daftar Akun Baru</button>
+                </div>
+            </div>
+
+            <div id="auth-form-login" class="p-6 space-y-4">
+                <button onclick="handleGoogleSignIn()" class="w-full py-3 bg-white hover:bg-slate-50 text-slate-700 font-bold rounded-xl text-sm transition shadow-md border border-slate-300 flex items-center justify-center gap-2.5">
+                    <svg class="w-5 h-5" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 12.955 4 4 12.955 4 24s8.955 20 20 20 20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z"/><path fill="#FF3D00" d="M6.306 14.691l6.571 4.819C14.655 15.108 18.961 12 24 12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 16.318 4 9.656 8.337 6.306 14.691z"/><path fill="#4CAF50" d="M24 44c5.166 0 9.86-1.977 13.409-5.192l-6.19-5.238C29.211 35.091 26.715 36 24 36c-5.202 0-9.619-3.317-11.283-7.946l-6.522 5.025C9.505 39.556 16.227 44 24 44z"/><path fill="#1976D2" d="M43.611 20.083H42V20H24v8h11.303a12.04 12.04 0 0 1-4.087 5.571l.003-.002 6.19 5.238C36.971 39.205 44 34 44 24c0-1.341-.138-2.65-.389-3.917z"/></svg>
+                    <span>Lanjutkan dengan Google</span>
+                </button>
+
+                <div class="flex items-center gap-3 py-1">
+                    <div class="flex-1 h-px bg-slate-200"></div>
+                    <span class="text-[10px] font-bold text-slate-400 uppercase">atau demo offline</span>
+                    <div class="flex-1 h-px bg-slate-200"></div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">NIP / Email BPS</label>
+                    <input type="text" id="login-input-nip" placeholder="198803122010121001 atau email" value="198511202008011003" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-bps-blue focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Password</label>
+                    <input type="password" id="login-input-pass" value="password" placeholder="••••••••" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-bps-blue focus:outline-none">
+                </div>
+
+                <button onclick="handleLoginSubmit()" class="w-full py-3 bg-bps-blue hover:bg-blue-600 text-white font-bold rounded-xl text-sm transition shadow-md">
+                    Masuk ke Sistem
+                </button>
+
+                <div class="pt-4 border-t border-slate-100">
+                    <p class="text-[11px] font-bold uppercase text-slate-400 text-center mb-2">Akses Cepat Demo Preset:</p>
+                    <div class="grid grid-cols-2 gap-2 text-xs">
+                        <button onclick="quickDemoLogin('ADMIN')" class="p-2 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-700 text-left transition font-medium">
+                            <i class="fa-solid fa-user-shield text-bps-blue mr-1"></i> Admin / Kasubag
+                        </button>
+                        <button onclick="quickDemoLogin('STAFF')" class="p-2 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-700 text-left transition font-medium">
+                            <i class="fa-solid fa-user-tie text-bps-accent mr-1"></i> Petrus L. (Statisi)
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="auth-form-register" class="p-6 space-y-3.5 hidden">
+                <p class="text-[11px] text-slate-500 bg-slate-50 border border-slate-200 rounded-lg p-2.5 leading-relaxed">
+                    Mode ini hanya untuk simulasi lokal (tidak tersimpan ke server). Untuk akun sungguhan, gunakan tombol <strong>"Lanjutkan dengan Google"</strong> di tab Masuk / Login.
+                </p>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Nama Lengkap & Gelar</label>
+                    <input type="text" id="reg-name" placeholder="Contoh: Ahmad Subagyo, SST" class="w-full px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-bps-blue focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">NIP (18 Digit)</label>
+                    <input type="text" id="reg-nip" placeholder="1995xxxxxxxxxxxxxx" class="w-full px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-bps-blue focus:outline-none">
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Tim Kerja</label>
+                        <select id="reg-division" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs focus:ring-2 focus:ring-bps-blue focus:outline-none">
+                            <option value="Subbagian Umum">Subbagian Umum</option>
+                            <option value="Tim Statistik Sosial">Statistik Sosial</option>
+                            <option value="Tim Statistik Produksi">Statistik Produksi</option>
+                            <option value="Tim Statistik Distribusi">Statistik Distribusi</option>
+                            <option value="Tim Nerwilis">Tim Nerwilis</option>
+                            <option value="Tim IPDS">Tim IPDS</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Jabatan</label>
+                        <input type="text" id="reg-role" placeholder="Statisi Ahli Muda" class="w-full px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs focus:ring-2 focus:ring-bps-blue focus:outline-none">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Password</label>
+                    <input type="password" id="reg-pass" placeholder="••••••••" class="w-full px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-bps-blue focus:outline-none">
+                </div>
+
+                <button onclick="handleRegisterSubmit()" class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-sm transition shadow-md">
+                    Daftar Akun
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- COMPLETE PROFILE SCREEN (muncul sekali setelah login Google pertama kali) -->
+    <div id="complete-profile-screen" class="fixed inset-0 z-50 bg-bps-navy flex items-center justify-center p-4 overflow-y-auto hidden">
+        <div class="w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden animate-fade-in my-8">
+            <div class="bg-bps-navy p-6 text-white text-center border-b border-slate-700/50">
+                <div class="w-16 h-16 rounded-2xl mx-auto mb-3 shadow-lg overflow-hidden border-2 border-white">
+                    <img id="cp-google-photo" src="" class="w-full h-full object-cover">
+                </div>
+                <h2 class="text-xl font-extrabold tracking-wide">Lengkapi Profil Kamu</h2>
+                <p class="text-xs text-slate-300 font-medium mt-1">Satu langkah lagi sebelum masuk ke SIMBAK</p>
+            </div>
+
+            <form id="form-complete-profile" onsubmit="handleCompleteProfileSubmit(event)" class="p-6 space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Nama Lengkap & Gelar</label>
+                    <input type="text" id="cp-input-name" required placeholder="Contoh: Ahmad Subagyo, SST" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-bps-blue focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">NIP (18 Digit)</label>
+                    <input type="text" id="cp-input-nip" required placeholder="1995xxxxxxxxxxxxxx" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-bps-blue focus:outline-none">
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Tim Kerja</label>
+                        <select id="cp-input-division" required class="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs focus:ring-2 focus:ring-bps-blue focus:outline-none">
+                            <option value="Subbagian Umum">Subbagian Umum</option>
+                            <option value="Tim Statistik Sosial">Statistik Sosial</option>
+                            <option value="Tim Statistik Produksi">Statistik Produksi</option>
+                            <option value="Tim Statistik Distribusi">Statistik Distribusi</option>
+                            <option value="Tim Nerwilis">Tim Nerwilis</option>
+                            <option value="Tim IPDS">Tim IPDS</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Jabatan</label>
+                        <input type="text" id="cp-input-role" required placeholder="Statisi Ahli Muda" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs focus:ring-2 focus:ring-bps-blue focus:outline-none">
+                    </div>
+                </div>
+
+                <button type="submit" id="cp-submit-btn" class="w-full py-3 bg-bps-blue hover:bg-blue-600 text-white font-bold rounded-xl text-sm transition shadow-md">
+                    Simpan & Masuk ke Dashboard
+                </button>
+                <button type="button" onclick="handleLogout()" class="w-full py-2 text-xs text-slate-400 hover:text-slate-600 transition">Batal, keluar dulu</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MAIN APP -->
+    <div id="main-app" class="h-full flex flex-col md:flex-row hidden relative">
+
+        <div id="sidebar-overlay" onclick="toggleSidebar()" class="fixed inset-0 bg-slate-900/60 z-30 hidden md:hidden transition-opacity"></div>
+
+        <!-- Sidebar -->
+        <aside id="sidebar" class="fixed inset-y-0 left-0 w-64 bg-bps-navy text-white flex-shrink-0 flex flex-col justify-between shadow-2xl z-40 transform -translate-x-full transition-transform duration-300 ease-in-out md:translate-x-0 md:static md:z-auto">
+            <div>
+                <div class="p-5 border-b border-slate-700/60 flex items-center justify-between">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-10 bg-white rounded-xl p-1.5 shadow flex items-center justify-center">
+                            <svg class="w-full h-full text-bps-navy" viewBox="0 0 100 100" fill="currentColor">
+                                <rect width="100" height="100" rx="20" fill="#002B49"/>
+                                <path d="M20 70 L50 20 L80 70 Z" fill="#007BFF"/>
+                                <path d="M35 70 L50 45 L65 70 Z" fill="#F39C12"/>
+                                <circle cx="50" cy="78" r="7" fill="#00A896"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <h1 class="font-extrabold text-lg leading-tight tracking-wide text-white">SIMBAK</h1>
+                            <p class="text-[11px] text-slate-300 font-medium">BPS Kab. Flores Timur</p>
+                        </div>
+                    </div>
+                    <button onclick="toggleSidebar()" class="md:hidden text-slate-400 hover:text-white p-1">
+                        <i class="fa-solid fa-xmark text-xl"></i>
+                    </button>
+                </div>
+
+                <nav class="mt-4 px-3 space-y-1">
+                    <button onclick="switchTab('dashboard')" id="nav-dashboard" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-sm font-semibold transition bg-bps-blue text-white shadow">
+                        <i class="fa-solid fa-chart-pie w-5 text-center"></i>
+                        <span>Dashboard Utama</span>
+                    </button>
+                    <button onclick="switchTab('activities')" id="nav-activities" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition">
+                        <i class="fa-solid fa-list-check w-5 text-center"></i>
+                        <span>Analisis Kegiatan (ABK)</span>
+                    </button>
+                    <button onclick="switchTab('employees')" id="nav-employees" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition">
+                        <i class="fa-solid fa-users w-5 text-center"></i>
+                        <span>Direktori Pegawai</span>
+                    </button>
+                    <button onclick="switchTab('analytics')" id="nav-analytics" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition">
+                        <i class="fa-solid fa-chart-column w-5 text-center"></i>
+                        <span>Visual Analytics</span>
+                    </button>
+                </nav>
+            </div>
+
+            <!-- Profile Sidebar Menu Clickable -->
+            <div onclick="openModalProfile()" class="p-4 border-t border-slate-700/60 bg-bps-dark/40 flex items-center justify-between cursor-pointer hover:bg-slate-800/80 transition group">
+                <div class="flex items-center space-x-3 overflow-hidden">
+                    <div id="user-avatar-badge" class="w-10 h-10 rounded-full bg-bps-accent text-slate-900 font-bold flex items-center justify-center text-xs shadow flex-shrink-0 overflow-hidden relative">
+                        <img id="user-avatar-img" src="" class="w-full h-full object-cover hidden">
+                        <span id="user-avatar-text">FT</span>
+                    </div>
+                    <div class="overflow-hidden">
+                        <p id="user-name-badge" class="text-xs font-semibold text-white truncate group-hover:text-bps-blue transition">Administrator BPS</p>
+                        <p id="user-role-badge" class="text-[10px] text-slate-400 truncate">Kode Satker: 5307</p>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-1">
+                    <button onclick="event.stopPropagation(); openModalProfile()" title="Edit Profil & Pengaturan" class="text-slate-400 hover:text-white p-1.5 transition">
+                        <i class="fa-solid fa-gear text-sm"></i>
+                    </button>
+                    <button onclick="event.stopPropagation(); handleLogout()" title="Keluar / Logout" class="text-slate-400 hover:text-red-400 p-1.5 transition">
+                        <i class="fa-solid fa-right-from-bracket text-sm"></i>
+                    </button>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 flex flex-col min-h-screen bg-slate-50 overflow-y-auto">
+            <header class="bg-white border-b border-slate-200 px-4 md:px-6 py-3.5 flex items-center justify-between sticky top-0 z-10 shadow-sm">
+                <div class="flex items-center space-x-3">
+                    <button onclick="toggleSidebar()" class="md:hidden p-2 text-slate-600 hover:bg-slate-100 rounded-lg focus:outline-none">
+                        <i id="sidebar-toggle-icon" class="fa-solid fa-bars text-xl"></i>
+                    </button>
+                    <span class="hidden sm:inline-block text-xs font-semibold uppercase px-2.5 py-1 bg-blue-50 text-bps-blue rounded-md border border-blue-100">Satker 5307</span>
+                    <h2 id="page-title" class="text-base sm:text-xl font-bold text-slate-800 truncate">Dashboard Beban Kerja</h2>
+                </div>
+                
+                <div class="flex items-center space-x-2 sm:space-x-4">
+                    <div class="hidden lg:flex items-center text-xs bg-slate-100 text-slate-600 px-3 py-1.5 rounded-lg border border-slate-200">
+                        <i class="fa-solid fa-clock text-bps-accent mr-2"></i>
+                        <span>Jam Kerja Efektif: <strong class="text-slate-800">125 Jam / Bulan</strong></span>
+                    </div>
+
+                    <button onclick="exportAllCSV()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-2 rounded-xl text-xs font-semibold flex items-center space-x-1.5 sm:space-x-2 transition shadow-sm">
+                        <i class="fa-solid fa-file-excel"></i>
+                        <span class="hidden sm:inline">Export Report</span>
+                    </button>
+                </div>
+            </header>
+
+            <div class="p-4 sm:p-6 space-y-6 flex-1">
+
+                <!-- TAB 1: DASHBOARD UTAMA -->
+                <div id="tab-content-dashboard" class="tab-page space-y-6 animate-fade-in">
+                    <!-- Banner Sapaan Selamat Datang -->
+    <div class="bg-gradient-to-r from-bps-navy to-slate-800 text-white p-5 rounded-2xl shadow-sm flex items-center justify-between">
+        <div>
+            <h3 class="text-lg sm:text-xl font-bold">Selamat datang di SIMBAK, <span id="welcome-user-name" class="text-bps-accent">...</span>! 👋</h3>
+            <p class="text-xs text-slate-300 mt-1">Sistem Informasi Monitoring Beban Kerja Pegawai BPS Kab. Flores Timur</p>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
+                        <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between">
+                            <div>
+                                <p class="text-[10px] sm:text-xs font-semibold text-slate-500 uppercase">Total Pegawai</p>
+                                <h3 id="kpi-total-employees" class="text-xl sm:text-2xl font-bold text-slate-800 mt-1">8</h3>
+                                <p class="text-[10px] sm:text-[11px] text-slate-400 mt-1 truncate"><i class="fa-solid fa-building-user text-bps-blue mr-1"></i> BPS Flotim</p>
+                            </div>
+                            <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-blue-50 text-bps-blue flex items-center justify-center text-lg sm:text-xl flex-shrink-0">
+                                <i class="fa-solid fa-users"></i>
+                            </div>
+                        </div>
+
+                        <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between">
+                            <div>
+                                <p class="text-[10px] sm:text-xs font-semibold text-slate-500 uppercase">Rata-rata Beban</p>
+                                <h3 id="kpi-avg-workload" class="text-xl sm:text-2xl font-bold text-slate-800 mt-1">99.3%</h3>
+                                <p class="text-[10px] sm:text-[11px] text-emerald-600 mt-1 font-medium truncate"><i class="fa-solid fa-circle-check mr-1"></i> Beban Ideal</p>
+                            </div>
+                            <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-teal-50 text-bps-teal flex items-center justify-center text-lg sm:text-xl flex-shrink-0">
+                                <i class="fa-solid fa-gauge-high"></i>
+                            </div>
+                        </div>
+
+                        <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between">
+                            <div>
+                                <p class="text-[10px] sm:text-xs font-semibold text-slate-500 uppercase">Overload (>100%)</p>
+                                <h3 id="kpi-overload-count" class="text-xl sm:text-2xl font-bold text-red-600 mt-1">2</h3>
+                                <p class="text-[10px] sm:text-[11px] text-red-500 mt-1 font-medium truncate"><i class="fa-solid fa-arrow-trend-up mr-1"></i> Perlu Redistribusi</p>
+                            </div>
+                            <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-red-50 text-red-600 flex items-center justify-center text-lg sm:text-xl flex-shrink-0">
+                                <i class="fa-solid fa-triangle-exclamation"></i>
+                            </div>
+                        </div>
+
+                        <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between">
+                            <div>
+                                <p class="text-[10px] sm:text-xs font-semibold text-slate-500 uppercase">Optimal (50-100%)</p>
+                                <h3 id="kpi-optimal-count" class="text-xl sm:text-2xl font-bold text-emerald-600 mt-1">4</h3>
+                                <p class="text-[10px] sm:text-[11px] text-emerald-500 mt-1 truncate"><i class="fa-solid fa-check mr-1"></i> Sesuai Kapasitas</p>
+                            </div>
+                            <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-lg sm:text-xl flex-shrink-0">
+                                <i class="fa-solid fa-user-check"></i>
+                            </div>
+                        </div>
+
+                        <div class="col-span-2 sm:col-span-1 bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between">
+                            <div>
+                                <p class="text-[10px] sm:text-xs font-semibold text-slate-500 uppercase">Underload (<50%)</p>
+                                <h3 id="kpi-underload-count" class="text-xl sm:text-2xl font-bold text-amber-600 mt-1">2</h3>
+                                <p class="text-[10px] sm:text-[11px] text-amber-500 mt-1 truncate"><i class="fa-solid fa-battery-quarter mr-1"></i> Siap Tambahan Tugas</p>
+                            </div>
+                            <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center text-lg sm:text-xl flex-shrink-0">
+                                <i class="fa-solid fa-user-minus"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div class="lg:col-span-2 bg-white p-4 sm:p-6 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col justify-between">
+                            <div class="mb-4">
+                                <h3 class="font-bold text-slate-800 text-sm sm:text-base">Rata-rata Beban Kerja per Fungsi/Tim</h3>
+                                <p class="text-xs text-slate-500">Persentase rata-rata beban kerja bulanan pegawai di BPS Kab. Flores Timur</p>
+                            </div>
+                            <div class="h-64 relative">
+                                <canvas id="chartWorkloadByDivision"></canvas>
+                            </div>
+                        </div>
+
+                        <div class="bg-white p-4 sm:p-6 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col justify-between">
+                            <div class="mb-4">
+                                <h3 class="font-bold text-slate-800 text-sm sm:text-base">Distribusi Status Beban</h3>
+                                <p class="text-xs text-slate-500">Proporsi pegawai berdasarkan kategori persentase beban kerja</p>
+                            </div>
+                            <div class="h-56 relative flex items-center justify-center">
+                                <canvas id="chartWorkloadStatus"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+                        <div class="p-4 sm:p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                            <div>
+                                <h3 class="font-bold text-slate-800 text-sm sm:text-base">Prioritas Alokasi Tugas</h3>
+                                <p class="text-xs text-slate-500 hidden sm:block">Pegawai dengan beban kerja tertinggi & terendah</p>
+                            </div>
+                            <button onclick="switchTab('activities')" class="text-xs text-bps-blue font-semibold">Atur Kegiatan <i class="fa-solid fa-arrow-right ml-1"></i></button>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left border-collapse min-w-[600px]">
+                                <thead>
+                                    <tr class="bg-slate-100/70 text-slate-600 text-xs font-bold uppercase border-b border-slate-200">
+                                        <th class="py-3.5 px-4 sm:px-6">Nama Pegawai / NIP</th>
+                                        <th class="py-3.5 px-4 sm:px-6">Fungsi / Tim</th>
+                                        <th class="py-3.5 px-4 sm:px-6">Jumlah Kegiatan</th>
+                                        <th class="py-3.5 px-4 sm:px-6">Total Jam Effective</th>
+                                        <th class="py-3.5 px-4 sm:px-6">Beban Kerja (%)</th>
+                                        <th class="py-3.5 px-4 sm:px-6">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="dashboard-priority-table-body" class="divide-y divide-slate-100 text-sm">
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TAB 2: ANALISIS KEGIATAN (ABK) -->
+                <div id="tab-content-activities" class="tab-page hidden space-y-6 animate-fade-in">
+                    <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4">
+                        <div class="flex-1 flex flex-col sm:flex-row items-center gap-3 w-full">
+                            <div class="relative w-full sm:w-72">
+                                <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-3 text-slate-400 text-sm"></i>
+                                <input type="text" id="search-activity" oninput="renderActivitiesTable()" placeholder="Cari kegiatan..." class="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-bps-blue text-slate-700">
+                            </div>
+                            
+                            <select id="filter-activity-division" onchange="renderActivitiesTable()" class="w-full sm:w-52 py-2 px-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-bps-blue text-slate-700">
+                                <option value="ALL">Semua Tim Kerja</option>
+                                <option value="Subbagian Umum">Subbagian Umum</option>
+                                <option value="Tim Statistik Sosial">Statistik Sosial</option>
+                                <option value="Tim Statistik Produksi">Statistik Produksi</option>
+                                <option value="Tim Statistik Distribusi">Statistik Distribusi</option>
+                                <option value="Tim Nerwilis">Tim Nerwilis</option>
+                                <option value="Tim IPDS">Tim IPDS</option>
+                            </select>
+                        </div>
+
+                        <button onclick="openModalAddActivity()" class="w-full sm:w-auto bg-bps-blue hover:bg-blue-600 text-white px-4 py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center space-x-2 transition shadow-sm">
+                            <i class="fa-solid fa-plus"></i>
+                            <span>+ Tambah Kegiatan ABK</span>
+                        </button>
+                    </div>
+
+                    <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left border-collapse min-w-[700px]">
+                                <thead>
+                                    <tr class="bg-slate-100/70 text-slate-600 text-xs font-bold uppercase border-b border-slate-200">
+                                        <th class="py-3.5 px-4 sm:px-6">Nama Kegiatan ABK</th>
+                                        <th class="py-3.5 px-4 sm:px-6">Penanggung Jawab</th>
+                                        <th class="py-3.5 px-4 sm:px-6 text-center">Norma Waktu</th>
+                                        <th class="py-3.5 px-4 sm:px-6 text-center">Volume Target</th>
+                                        <th class="py-3.5 px-4 sm:px-6 text-center">Total Jam</th>
+                                        <th class="py-3.5 px-4 sm:px-6">Deadline & Status</th>
+                                        <th class="py-3.5 px-4 sm:px-6 text-center">Aksi</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="activities-table-body" class="divide-y divide-slate-100 text-sm">
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TAB 3: DIREKTORI PEGAWAI -->
+                <div id="tab-content-employees" class="tab-page hidden space-y-6 animate-fade-in">
+                    <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4">
+                        <div class="flex-1 flex flex-col sm:flex-row items-center gap-3 w-full">
+                            <div class="relative w-full sm:w-80">
+                                <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-3 text-slate-400 text-sm"></i>
+                                <input type="text" id="search-employee" oninput="renderEmployeeGrid()" placeholder="Cari nama pegawai atau jabatan..." class="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-bps-blue text-slate-700">
+                            </div>
+
+                            <select id="filter-employee-status" onchange="renderEmployeeGrid()" class="w-full sm:w-48 py-2 px-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-bps-blue text-slate-700">
+                                <option value="ALL">Semua Kategori Status</option>
+                                <option value="OVERLOAD">Overload (>100%)</option>
+                                <option value="OPTIMAL">Optimal (50-100%)</option>
+                                <option value="UNDERLOAD">Underload (<50%)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div id="employee-grid-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+                    </div>
+                </div>
+
+                <!-- TAB 4: VISUAL ANALYTICS -->
+                <div id="tab-content-analytics" class="tab-page hidden space-y-6 animate-fade-in">
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div class="bg-white p-4 sm:p-6 rounded-2xl border border-slate-200/80 shadow-sm">
+                            <h3 class="font-bold text-slate-800 text-sm sm:text-base mb-1">Perbandingan Jam Kerja Efektif Terisi vs Standar</h3>
+                            <p class="text-xs text-slate-500 mb-4">Standar Jam Kerja Efektif Bulanan = 125 Jam per Pegawai</p>
+                            <div class="h-72 relative">
+                                <canvas id="chartAnalyticsBar"></canvas>
+                            </div>
+                        </div>
+
+                        <div class="bg-white p-4 sm:p-6 rounded-2xl border border-slate-200/80 shadow-sm">
+                            <h3 class="font-bold text-slate-800 text-sm sm:text-base mb-1">Intensitas Beban Kerja Antar Tim/Fungsi</h3>
+                            <p class="text-xs text-slate-500 mb-4">Pemetaan sebaran beban kerja relatif di BPS Kab. Flores Timur</p>
+                            <div class="h-72 relative flex items-center justify-center">
+                                <canvas id="chartAnalyticsRadar"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-4 sm:p-6 rounded-2xl border border-slate-200/80 shadow-sm">
+                        <h3 class="font-bold text-slate-800 text-sm sm:text-base mb-3">Ringkasan Analisis Beban Kerja Satker</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs text-slate-600">
+                            <div class="p-4 bg-slate-50 rounded-xl border border-slate-200">
+                                <span class="font-bold text-slate-800 block text-sm mb-1">Fungsi Terpadat</span>
+                                <p id="highest-section-info">Tim Statistik Produksi memiliki rata-rata beban tertinggi (122.4%). Disarankan untuk membagi tugas lapangan.</p>
+                            </div>
+                            <div class="p-4 bg-slate-50 rounded-xl border border-slate-200">
+                                <span class="font-bold text-slate-800 block text-sm mb-1">Fungsi Memiliki Longgar</span>
+                                <p id="lowest-section-info">Tim Nerwilis memiliki kapasitas longgar (74.0%). Dapat diperdayakan untuk membantu persiapan publikasi.</p>
+                            </div>
+                            <div class="p-4 bg-slate-50 rounded-xl border border-slate-200">
+                                <span class="font-bold text-slate-800 block text-sm mb-1">Rekomendasi Kebijakan</span>
+                                <p>Lakukan optimalisasi penugasan lintas fungsi (Cross-Functional Task Allocation) menjelang pencacahan Susenas & Sakernas.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Footer -->
+            <footer class="site-footer">
+              <div class="footer-top-bar"></div>
+              <div class="footer-container">
+                <div class="footer-grid">
+                  <div class="footer-col brand-col">
+                    <div class="footer-brand">
+                      <img src="logo bps.png" alt="Logo BPS" class="footer-logo">
+                      <div class="brand-text">
+                        <h3>Badan Pusat Statistik</h3>
+                        <p>Kabupaten Flores Timur</p>
+                      </div>
+                    </div>
+                    <p class="brand-desc">
+                      SIMBAK sebagai Sistem Informasi Beban Kerja Pegawai BPS Kabupaten Flores Timur, membantu dalam pengelolaan dan analisis beban kerja pegawai secara efektif.
+                    </p>
+                  </div>
+
+                  <div class="footer-col">
+                    <h4 class="col-title">Tautan Cepat</h4>
+                    <ul class="footer-links">
+                      <li><a href="#">Beranda</a></li>
+                      <li><a href="#">Tentang Kami</a></li>
+                      <li><a href="#">Layanan PST</a></li>
+                      <li><a href="#">Hubungi Kami</a></li>
+                    </ul>
+                  </div>
+
+                  <div class="footer-col">
+                    <h4 class="col-title">Hubungi Kami</h4>
+                    <ul class="contact-info">
+                      <li>
+                        <i class="fas fa-map-marker-alt contact-icon"></i>
+                        <span>Jl. San Juan, Sarotari Tengah, Larantuka<br>Kabupaten Flores Timur<br>Nusa Tenggara Timur, 86219</span>
+                      </li>
+                      <li>
+                        <i class="fas fa-phone contact-icon"></i>
+                        <span>(0383) 21164</span>
+                      </li>
+                      <li>
+                        <i class="fas fa-envelope contact-icon"></i>
+                        <span>bps5309@bps.gov.id</span>
+                      </li>
+                    </ul>
+                  </div>
+
+                  <div class="footer-col">
+                    <h4 class="col-title">Media Sosial</h4>
+                    <p class="social-desc">Ikuti kami untuk mendapatkan informasi statistik terbaru.</p>
+                    <div class="social-icons">
+                      <a href="#" class="social-btn"><i class="fas fa-qrcode"></i></a>
+                      <a href="#" class="social-btn"><i class="fas fa-globe"></i></a>
+                      <a href="#" class="social-btn"><i class="fas fa-camera"></i></a>
+                      <a href="#" class="social-btn"><i class="fas fa-video"></i></a>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="footer-bottom">
+                  <p>&copy; 2026 Badan Pusat Statistik Kabupaten Flores Timur. Hak Cipta Dilindungi.</p>
+                  <div class="legal-links">
+                    <a href="#">Kebijakan Privasi</a>
+                    <a href="#">Syarat & Ketentuan</a>
+                  </div>
+                </div>
+              </div>
+            </footer>
+        </main>
+    </div>
+
+    <!-- MODAL: EDIT PROFIL & PENGATURAN -->
+    <div id="modal-profile" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4 overflow-y-auto">
+        <div class="bg-white rounded-3xl shadow-2xl border border-slate-200 w-full max-w-md overflow-hidden animate-fade-in my-8">
+            <div class="bg-bps-navy p-5 text-white flex items-center justify-between">
+                <div class="flex items-center space-x-2">
+                    <i class="fa-solid fa-user-gear text-bps-accent"></i>
+                    <h3 class="font-bold text-base">Edit Profil & Pengaturan</h3>
+                </div>
+                <button onclick="closeModalProfile()" class="text-slate-300 hover:text-white">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <form id="form-profile" onsubmit="handleSaveProfile(event)" class="p-6 space-y-4">
+                <!-- Foto Profil dengan Icon Edit -->
+                <div class="flex flex-col items-center justify-center space-y-2">
+                    <div class="relative group cursor-pointer">
+                        <img id="profile-preview-img" src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80" class="w-24 h-24 rounded-full object-cover border-4 border-bps-blue shadow-lg">
+                        <label for="input-profile-photo" class="absolute inset-0 bg-slate-900/50 rounded-full flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition cursor-pointer">
+                            <i class="fa-solid fa-camera text-xl"></i>
+                        </label>
+                        <input type="file" id="input-profile-photo" accept="image/*" onchange="previewProfilePhoto(event)" class="hidden">
+                    </div>
+                    <span class="text-[11px] font-semibold text-slate-500">Klik foto untuk mengganti gambar</span>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Nama Lengkap & Gelar</label>
+                    <input type="text" id="profile-input-name" required class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-bps-blue focus:outline-none">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">NIP (18 Digit)</label>
+                    <input type="text" id="profile-input-nip" required class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-bps-blue focus:outline-none">
+                </div>
+
+                <!-- Tampilan Tema Dark/Light Mode -->
+                <div class="pt-3 border-t border-slate-200">
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-2">Tema Tampilan</label>
+                    <div class="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-200">
+                        <div class="flex items-center space-x-2">
+                            <i id="theme-icon" class="fa-solid fa-sun text-amber-500 text-lg"></i>
+                            <span id="theme-label-text" class="text-xs font-semibold text-slate-700">Light Mode</span>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="theme-toggle-switch" onchange="handleThemeToggle(this.checked)" class="sr-only peer">
+                            <div class="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-bps-blue"></div>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-end space-x-3 pt-3 border-t border-slate-100">
+                    <button type="button" onclick="closeModalProfile()" class="px-4 py-2 bg-slate-100 text-slate-600 hover:bg-slate-200 rounded-xl text-xs font-semibold transition">Batal</button>
+                    <button type="submit" class="px-5 py-2 bg-bps-blue hover:bg-blue-600 text-white rounded-xl text-xs font-semibold transition shadow-sm">Simpan Perubahan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: ADD / EDIT ACTIVITY -->
+    <div id="modal-activity" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4 overflow-y-auto">
+        <div class="bg-white rounded-3xl shadow-2xl border border-slate-200 w-full max-w-lg overflow-hidden animate-fade-in my-8">
+            <div class="bg-bps-navy p-5 text-white flex items-center justify-between">
+                <div class="flex items-center space-x-2">
+                    <i class="fa-solid fa-list-check text-bps-accent"></i>
+                    <h3 id="modal-activity-title" class="font-bold text-base">Tambah Kegiatan ABK Baru</h3>
+                </div>
+                <button onclick="closeModalActivity()" class="text-slate-300 hover:text-white">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            
+            <form id="form-activity" onsubmit="handleSaveActivity(event)" class="p-6 space-y-4">
+                <input type="hidden" id="form-activity-id">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Nama Kegiatan ABK</label>
+                    <input type="text" id="form-activity-name" required placeholder="Contoh: Cetak Surat Tugas & Lembar Kendali" class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-bps-blue focus:outline-none">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Penanggung Jawab (Pegawai)</label>
+                    <select id="form-activity-assignee" required class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-bps-blue focus:outline-none">
+                    </select>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Norma Waktu (Per Unit)</label>
+                        <div class="flex space-x-2">
+                            <input type="number" id="form-activity-norm-val" step="any" min="0.01" required oninput="calculateCalculatedHours()" placeholder="Contoh: 3 atau 0.25" class="w-2/3 px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-bps-blue focus:outline-none">
+                            <select id="form-activity-norm-unit" onchange="calculateCalculatedHours()" class="w-1/3 px-2 py-2.5 border border-slate-300 rounded-xl text-xs font-bold bg-slate-50 focus:outline-none">
+                                <option value="jam">Jam</option>
+                                <option value="menit">Menit</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Volume Target</label>
+                        <input type="number" id="form-activity-volume" step="1" min="1" required oninput="calculateCalculatedHours()" placeholder="Contoh: 40" class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-bps-blue focus:outline-none">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Mulai Pekerjaan</label>
+                        <input type="datetime-local" id="form-activity-start" required class="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs focus:ring-2 focus:ring-bps-blue focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Deadline Selesai</label>
+                        <input type="datetime-local" id="form-activity-end" required class="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs focus:ring-2 focus:ring-bps-blue focus:outline-none">
+                    </div>
+                </div>
+
+                <div>
+                    <div class="flex justify-between items-center mb-1">
+                        <label class="block text-xs font-bold text-slate-700 uppercase">Progress Pekerjaan (%)</label>
+                        <span id="form-activity-progress-label" class="text-xs font-bold text-bps-blue">0%</span>
+                    </div>
+                    <input type="range" id="form-activity-progress" min="0" max="100" value="0" oninput="document.getElementById('form-activity-progress-label').innerText = this.value + '%'" class="w-full accent-bps-blue">
+                </div>
+
+                <div class="bg-blue-50 border border-blue-100 p-3.5 rounded-2xl flex items-center justify-between text-xs text-blue-900">
+                    <span>Estimasi Beban Kerja:</span>
+                    <strong id="form-activity-calc-preview" class="text-sm font-extrabold text-bps-blue">0 Jam Efektif</strong>
+                </div>
+
+                <div class="flex items-center justify-end space-x-3 pt-3 border-t border-slate-100">
+                    <button type="button" onclick="closeModalActivity()" class="px-4 py-2 bg-slate-100 text-slate-600 hover:bg-slate-200 rounded-xl text-xs font-semibold transition">Batal</button>
+                    <button type="submit" class="px-5 py-2 bg-bps-blue hover:bg-blue-600 text-white rounded-xl text-xs font-semibold transition shadow-sm">Simpan Kegiatan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: DETAIL BREAKDOWN PEGAWAI -->
+    <div id="modal-employee-detail" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4 overflow-y-auto">
+        <div class="bg-white rounded-3xl shadow-2xl border border-slate-200 w-full max-w-4xl overflow-hidden animate-fade-in my-8 flex flex-col max-h-[90vh]">
+            <div class="bg-bps-navy p-5 text-white flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <img id="modal-emp-photo" src="" class="w-12 h-12 rounded-full object-cover border-2 border-white shadow">
+                    <div>
+                        <h3 id="modal-emp-name" class="font-bold text-base leading-tight">Nama Pegawai</h3>
+                        <p id="modal-emp-role-div" class="text-xs text-slate-300">Jabatan • Tim Kerja</p>
+                    </div>
+                </div>
+                <button onclick="closeModalEmployeeDetail()" class="text-slate-300 hover:text-white">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <div class="p-4 sm:p-6 space-y-5 overflow-y-auto flex-1">
+                <div class="grid grid-cols-3 gap-2 sm:gap-3 text-center">
+                    <div class="p-2 sm:p-3 bg-slate-50 border border-slate-200 rounded-2xl">
+                        <span class="text-[10px] sm:text-[11px] text-slate-500 font-medium block">Total Jam Kerja</span>
+                        <strong id="modal-emp-hours" class="text-sm sm:text-lg font-bold text-slate-800">0 Jam</strong>
+                    </div>
+                    <div class="p-2 sm:p-3 bg-slate-50 border border-slate-200 rounded-2xl">
+                        <span class="text-[10px] sm:text-[11px] text-slate-500 font-medium block">Beban Kerja</span>
+                        <strong id="modal-emp-percent" class="text-sm sm:text-lg font-bold text-bps-blue">0%</strong>
+                    </div>
+                    <div class="p-2 sm:p-3 bg-slate-50 border border-slate-200 rounded-2xl">
+                        <span class="text-[10px] sm:text-[11px] text-slate-500 font-medium block">Status Kapasitas</span>
+                        <span id="modal-emp-status-badge" class="mt-1 inline-block px-2 py-0.5 text-[10px] sm:text-xs font-semibold rounded-md">Status</span>
+                    </div>
+                </div>
+
+                <div>
+                    <h4 class="font-bold text-sm text-slate-800 mb-3">Daftar Rincian Kegiatan (ABK) Pegawai:</h4>
+                    <div class="border border-slate-200 rounded-2xl overflow-hidden">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left text-xs min-w-[500px]">
+                                <thead class="bg-slate-100 text-slate-600 font-bold border-b border-slate-200">
+                                    <tr>
+                                        <th class="p-3">Nama Kegiatan ABK</th>
+                                        <th class="p-3 text-center">Norma Waktu</th>
+                                        <th class="p-3 text-center">Target</th>
+                                        <th class="p-3 text-center">Total Jam</th>
+                                        <th class="p-3">Jadwal & Progress</th>
+                                        <th class="p-3 text-center">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="modal-emp-activities-list" class="divide-y divide-slate-100 text-slate-700">
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="p-4 bg-slate-50 border-t border-slate-200 flex justify-end">
+                <button onclick="closeModalEmployeeDetail()" class="px-5 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl text-xs font-bold transition">Tutup</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- TOAST NOTIFICATION -->
+    <div id="toast" class="fixed bottom-5 right-5 bg-slate-900 text-white px-4 py-3 rounded-2xl shadow-2xl flex items-center space-x-3 text-xs font-medium translate-y-20 opacity-0 transition-all duration-300 z-50">
+        <i id="toast-icon" class="fa-solid fa-circle-check text-emerald-400 text-base"></i>
+        <span id="toast-message">Pesan notifikasi...</span>
+    </div>
+
+    <script type="module" src="/src/main.js"></script>
+</body>
+</html>
