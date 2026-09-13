@@ -1,19 +1,11 @@
 import { supabase } from './supabaseClient.js'
-import {
-  signInWithGoogle,
-  signOut,
-  getSessionSafely,
-  readOAuthErrorFromUrl,
-  signUpManual,
-  signInManual
-} from './auth.js'
+import { signInWithGoogle, signUpWithEmail, signInWithEmail, signOut, getSessionSafely } from './auth.js'
 import {
   fetchEmployees,
   fetchActivities,
   fetchProfileByUserId,
   completeProfile,
   updateOwnProfile,
-  adminCreateEmployee,
   insertActivity,
   updateActivity,
   deleteActivity,
@@ -22,33 +14,46 @@ import {
 
 const STANDARD_EFF_HOURS = 125
 
-// ---------------------------------------------------------------
 // STATE
-// ---------------------------------------------------------------
-let currentUser = null       // { id, empId, isAdmin, name, role, userId }
+let currentUser = null
 let employees = []
 let activities = []
+let isOfflineDemo = false
 let tempNewPhotoUrl = null
-let pendingSessionUser = null // user auth Supabase yang belum lengkapi profil
+let pendingSessionUser = null
+let isRegisteringProcess = false
 
 let chartDivisionInstance = null
 let chartStatusInstance = null
 let chartAnalyticsBarInstance = null
 let chartAnalyticsRadarInstance = null
 
-// ---------------------------------------------------------------
-// INIT / AUTH FLOW
-// (dibungkus try-catch total supaya kalau ada error apapun,
-// halaman TIDAK blank putih -- selalu jatuh balik ke layar login)
-// ---------------------------------------------------------------
-async function init() {
-  const oauthError = readOAuthErrorFromUrl()
-  if (oauthError) {
-    // Login Google ditolak database (mis. bukan email admin). Tampilkan
-    // sesudah layar login dirender supaya toast-nya kelihatan.
-    setTimeout(() => showToast(oauthError), 300)
+// Helper Penyimpanan Permanen Lokal (LocalStorage)
+function getLocalRegisteredUsers() {
+  try {
+    return JSON.parse(localStorage.getItem('simbak_registered_users') || '[]')
+  } catch (e) {
+    return []
   }
+}
 
+function saveLocalRegisteredUser(userObj) {
+  const users = getLocalRegisteredUsers()
+  const existingIdx = users.findIndex(u => (u.nip && u.nip === userObj.nip) || (u.email && u.email === userObj.email))
+  if (existingIdx !== -1) {
+    users[existingIdx] = { ...users[existingIdx], ...userObj }
+  } else {
+    users.push({
+      id: 'USER-' + Date.now(),
+      ...userObj,
+      photo: DEFAULT_PHOTO
+    })
+  }
+  localStorage.setItem('simbak_registered_users', JSON.stringify(users))
+}
+
+// INIT / AUTH FLOW
+async function init() {
   try {
     const session = await getSessionSafely()
     if (session) {
@@ -57,7 +62,7 @@ async function init() {
       showAuthScreen()
     }
   } catch (err) {
-    console.error('[SIMBAK] init() error, fallback ke layar login:', err)
+    console.error('[SIMBAK] init() error:', err)
     showAuthScreen()
   }
 
@@ -76,7 +81,10 @@ async function init() {
 }
 
 async function handleAuthedSession(session) {
+  if (isRegisteringProcess) return;
+
   try {
+    isOfflineDemo = false
     const profile = await fetchProfileByUserId(session.user.id)
 
     if (!profile || !profile.profileCompleted) {
@@ -104,7 +112,27 @@ async function handleAuthedSession(session) {
 
 async function loadAllDataFromSupabase() {
   const [emps, acts] = await Promise.all([fetchEmployees(), fetchActivities()])
-  employees = emps
+  const localUsers = getLocalRegisteredUsers()
+
+  const combinedEmps = [...emps]
+  localUsers.forEach(lu => {
+    if (!combinedEmps.some(e => e.nip === lu.nip || e.email === lu.email)) {
+      combinedEmps.push({
+        id: lu.id,
+        userId: lu.id,
+        nip: lu.nip || '-',
+        name: lu.name,
+        division: lu.division,
+        role: lu.role,
+        photo: lu.photo || DEFAULT_PHOTO,
+        isAdmin: false,
+        profileCompleted: true,
+        email: lu.email
+      })
+    }
+  })
+
+  employees = combinedEmps
   activities = acts
 }
 
@@ -120,17 +148,14 @@ function showCompleteProfileScreen(googleUser) {
   document.getElementById('complete-profile-screen').classList.remove('hidden')
 
   const meta = googleUser.user_metadata || {}
-  document.getElementById('cp-google-photo').src = meta.avatar_url || DEFAULT_PHOTO
+  document.getElementById('cp-google-photo').src = meta.avatar_url || meta.picture || DEFAULT_PHOTO
   document.getElementById('cp-input-name').value = meta.full_name || meta.name || ''
 }
 
 async function handleGoogleSignIn() {
   await signInWithGoogle()
-  // Browser akan redirect ke Google lalu kembali lagi ke app;
-  // sisanya ditangani oleh onAuthStateChange di init().
 }
 
-// main.js (Ganti fungsi handleCompleteProfileSubmit dengan kode ini)
 async function handleCompleteProfileSubmit(event) {
   event.preventDefault()
   const btn = document.getElementById('cp-submit-btn')
@@ -161,12 +186,11 @@ async function handleCompleteProfileSubmit(event) {
       nip,
       timKerja: division,
       jabatan: role,
+      email: pendingSessionUser.email,
       avatarUrl: meta.avatar_url || meta.picture || DEFAULT_PHOTO
     })
 
-    if (!profile) {
-      throw new Error('Data profil tidak berhasil disimpan di database.')
-    }
+    if (!profile) throw new Error('Data profil tidak berhasil disimpan di database.')
 
     currentUser = {
       id: profile.id,
@@ -190,77 +214,129 @@ async function handleCompleteProfileSubmit(event) {
   }
 }
 
-// ---------------------------------------------------------------
-// LOGIN / DAFTAR MANUAL -- pegawai (email asli + password). Ini akun
-// sungguhan di Supabase Auth, tersimpan real-time di database, sama
-// sekali tidak ada mode offline/lokal.
-// ---------------------------------------------------------------
 async function handleLoginSubmit() {
-  const btn = document.getElementById('login-submit-btn')
-  const originalText = btn ? btn.innerText : ''
-  try {
-    const email = document.getElementById('login-input-email').value.trim()
-    const password = document.getElementById('login-input-pass').value
+  const inputVal = document.getElementById('login-input-nip').value.trim()
+  const password = document.getElementById('login-input-pass').value.trim()
 
-    if (!email || !password) {
-      alert('Email dan password wajib diisi!')
-      return
+  if (!inputVal || !password) {
+    alert('Masukkan NIP / Email dan Password!')
+    return
+  }
+
+  let emailToTry = inputVal
+  if (!inputVal.includes('@')) {
+    try {
+      const { data } = await supabase.from('profiles').select('email').eq('nip', inputVal).maybeSingle()
+      if (data && data.email) {
+        emailToTry = data.email
+      } else {
+        emailToTry = `${inputVal}@simbak.bps`
+      }
+    } catch (e) {
+      emailToTry = `${inputVal}@simbak.bps`
+    }
+  }
+
+  try {
+    const data = await signInWithEmail(emailToTry, password)
+    if (data?.session) return
+  } catch (err) {
+    console.warn('[SIMBAK] Login Supabase gagal/fallback:', err.message)
+  }
+
+  const localUsers = getLocalRegisteredUsers()
+  const matchedUser = localUsers.find(
+    u => (u.nip === inputVal || u.email === inputVal || u.email === emailToTry) && u.password === password
+  )
+
+  if (matchedUser) {
+    isOfflineDemo = true
+    let emp = employees.find(e => e.nip === matchedUser.nip || e.email === matchedUser.email)
+    if (!emp) {
+      emp = {
+        id: matchedUser.id,
+        nip: matchedUser.nip,
+        name: matchedUser.name,
+        division: matchedUser.division,
+        role: matchedUser.role,
+        photo: matchedUser.photo || DEFAULT_PHOTO
+      }
+      employees.push(emp)
     }
 
-    if (btn) { btn.disabled = true; btn.innerText = 'Memproses...' }
-    await signInManual({ email, password })
-    // Selanjutnya ditangani oleh onAuthStateChange (SIGNED_IN) di init().
-  } catch (err) {
-    console.error('[SIMBAK] handleLoginSubmit error:', err)
-    alert('Gagal login: ' + (err.message || err))
-  } finally {
-    if (btn) { btn.disabled = false; btn.innerText = originalText }
+    currentUser = {
+      id: emp.id,
+      empId: emp.id,
+      isAdmin: false,
+      name: matchedUser.name,
+      role: matchedUser.division
+    }
+
+    enterMainApp()
+    showToast(`Selamat datang kembali, ${matchedUser.name}!`)
+    return
   }
+
+  alert('NIP/Email atau Password salah! Pastikan Anda sudah mendaftar terlebih dahulu.')
 }
 
 async function handleRegisterSubmit() {
-  const btn = document.getElementById('register-submit-btn')
-  const originalText = btn ? btn.innerText : ''
+  const name = document.getElementById('reg-name').value.trim()
+  const emailInput = document.getElementById('reg-email') ? document.getElementById('reg-email').value.trim() : ''
+  const nip = document.getElementById('reg-nip').value.trim()
+  const division = document.getElementById('reg-division').value
+  const role = document.getElementById('reg-role').value.trim()
+  const password = document.getElementById('reg-pass').value.trim()
+
+  if (!name || !nip || !password || !role) {
+    alert('Lengkapi seluruh form registrasi (Nama, NIP, Jabatan, Password)!')
+    return
+  }
+
+  const btn = document.querySelector('#auth-form-register button')
+  const originalText = btn.innerText
+
   try {
-    const name = document.getElementById('reg-name').value.trim()
-    const nip = document.getElementById('reg-nip').value.trim()
-    const division = document.getElementById('reg-division').value
-    const role = document.getElementById('reg-role').value.trim()
-    const email = document.getElementById('reg-email').value.trim()
-    const password = document.getElementById('reg-pass').value
+    btn.disabled = true
+    btn.innerText = 'Menyimpan...'
+    isRegisteringProcess = true
 
-    if (!name || !nip || !role || !email || !password) {
-      alert('Semua kolom wajib diisi!')
-      return
-    }
-    if (password.length < 6) {
-      alert('Password minimal 6 karakter!')
-      return
+    const userEmail = emailInput || `${nip}@simbak.bps`
+
+    try {
+      const authData = await signUpWithEmail(userEmail, password, { full_name: name })
+      if (authData?.user) {
+        await completeProfile(authData.user.id, {
+          fullName: name,
+          nip,
+          timKerja: division,
+          jabatan: role,
+          email: userEmail,
+          avatarUrl: DEFAULT_PHOTO
+        })
+      }
+    } catch (sbErr) {
+      console.warn('[SIMBAK] Supabase register info:', sbErr.message)
     }
 
-    if (btn) { btn.disabled = true; btn.innerText = 'Mendaftarkan...' }
-    const result = await signUpManual({ email, password, fullName: name, nip, timKerja: division, jabatan: role })
+    saveLocalRegisteredUser({ name, email: userEmail, nip, division, role, password })
 
-    if (result.session) {
-      // Konfirmasi email nonaktif di project ini -> langsung dapat sesi.
-      await handleAuthedSession(result.session)
-      showToast('Akun berhasil dibuat. Selamat datang, ' + name + '!')
-    } else {
-      // Konfirmasi email aktif di project Supabase -> user harus cek inbox dulu.
-      alert('Akun berhasil didaftarkan. Silakan cek email kamu untuk konfirmasi sebelum login.')
-      toggleAuthTab('login')
-    }
+    showToast('Akun berhasil dibuat & tersimpan permanen!')
+
+    toggleAuthTab('login')
+    document.getElementById('login-input-nip').value = nip
+    document.getElementById('login-input-pass').value = password
   } catch (err) {
     console.error('[SIMBAK] handleRegisterSubmit error:', err)
-    alert('Gagal mendaftar: ' + (err.message || err))
+    alert('Gagal mendaftar: ' + err.message)
   } finally {
-    if (btn) { btn.disabled = false; btn.innerText = originalText }
+    isRegisteringProcess = false
+    btn.disabled = false
+    btn.innerText = originalText
   }
 }
 
-// ---------------------------------------------------------------
-// UI HELPERS
-// ---------------------------------------------------------------
+// UI HELPERS & RENDER
 function toggleSidebar() {
   const sidebar = document.getElementById('sidebar')
   const overlay = document.getElementById('sidebar-overlay')
@@ -295,13 +371,17 @@ function getWorkloadStatus(percent) {
 
 function getActivityStatus(act) {
   if (act.progress >= 100) return { label: 'Selesai', class: 'bg-emerald-100 text-emerald-800 border-emerald-200' }
-  const diffDays = Math.ceil((new Date(act.endDate) - new Date()) / (1000 * 60 * 60 * 24))
+  if (!act.endDate) return { label: 'Sedang Berjalan', class: 'bg-blue-100 text-blue-800 border-blue-200' }
+  
+  const endDateObj = new Date(act.endDate)
+  if (isNaN(endDateObj.getTime())) return { label: 'Sedang Berjalan', class: 'bg-blue-100 text-blue-800 border-blue-200' }
+
+  const diffDays = Math.ceil((endDateObj - new Date()) / (1000 * 60 * 60 * 24))
   if (diffDays < 0) return { label: 'Terlambat', class: 'bg-red-100 text-red-800 border-red-200' }
   if (diffDays <= 2) return { label: `Hampir Deadline (${diffDays} hr)`, class: 'bg-amber-100 text-amber-800 border-amber-200' }
   return { label: `Sedang Berjalan (${diffDays} hr)`, class: 'bg-blue-100 text-blue-800 border-blue-200' }
 }
 
-// --- DARK MODE ---
 function handleThemeToggle(isDark) {
   const html = document.documentElement
   const themeIcon = document.getElementById('theme-icon')
@@ -309,13 +389,13 @@ function handleThemeToggle(isDark) {
 
   if (isDark) {
     html.classList.add('dark')
-    themeIcon.className = 'fa-solid fa-moon text-bps-blue text-lg'
-    themeLabel.innerText = 'Dark Mode'
+    if (themeIcon) themeIcon.className = 'fa-solid fa-moon text-bps-blue text-lg'
+    if (themeLabel) themeLabel.innerText = 'Dark Mode'
     localStorage.setItem('theme', 'dark')
   } else {
     html.classList.remove('dark')
-    themeIcon.className = 'fa-solid fa-sun text-amber-500 text-lg'
-    themeLabel.innerText = 'Light Mode'
+    if (themeIcon) themeIcon.className = 'fa-solid fa-sun text-amber-500 text-lg'
+    if (themeLabel) themeLabel.innerText = 'Light Mode'
     localStorage.setItem('theme', 'light')
   }
 }
@@ -323,11 +403,11 @@ function handleThemeToggle(isDark) {
 function initTheme() {
   const savedTheme = localStorage.getItem('theme')
   const isDark = savedTheme === 'dark'
-  document.getElementById('theme-toggle-switch').checked = isDark
+  const toggleSwitch = document.getElementById('theme-toggle-switch')
+  if (toggleSwitch) toggleSwitch.checked = isDark
   handleThemeToggle(isDark)
 }
 
-// --- EDIT PROFIL ---
 function openModalProfile() {
   if (!currentUser) return
   const emp = employees.find(e => e.id === currentUser.empId) || employees[0]
@@ -367,13 +447,23 @@ async function handleSaveProfile(event) {
   }
 
   try {
-    await updateOwnProfile(currentUser.userId, {
-      fullName: newName,
-      nip: newNip,
-      avatarUrl: tempNewPhotoUrl || undefined
-    })
-    currentUser.name = newName
-    await loadAllDataFromSupabase()
+    if (isOfflineDemo || !currentUser.userId) {
+      currentUser.name = newName
+      const empIndex = employees.findIndex(e => e.id === currentUser.empId)
+      if (empIndex !== -1) {
+        employees[empIndex].name = newName
+        employees[empIndex].nip = newNip
+        if (tempNewPhotoUrl) employees[empIndex].photo = tempNewPhotoUrl
+      }
+    } else {
+      await updateOwnProfile(currentUser.userId, {
+        fullName: newName,
+        nip: newNip,
+        avatarUrl: tempNewPhotoUrl || undefined
+      })
+      currentUser.name = newName
+      await loadAllDataFromSupabase()
+    }
 
     updateUserBadgeUI()
     refreshAllViews()
@@ -381,7 +471,7 @@ async function handleSaveProfile(event) {
     showToast('Profil berhasil diperbarui!')
   } catch (err) {
     console.error('[SIMBAK] handleSaveProfile error:', err)
-    showToast('Gagal menyimpan profil (jaringan bermasalah).')
+    showToast('Gagal menyimpan profil.')
   }
 }
 
@@ -428,22 +518,18 @@ function enterMainApp() {
   document.getElementById('main-app').classList.remove('hidden')
 
   updateUserBadgeUI()
-  updateAdminGatedUI()
   initTheme()
   refreshAllViews()
 }
 
-// Tampilkan/sembunyikan elemen yang hanya boleh dipakai Admin
-// (mis. "+ Tambah Kegiatan ABK", "+ Tambah Pegawai"). Elemen-elemen itu
-// diberi class "admin-only" di index.html.
-function updateAdminGatedUI() {
-  const isAdmin = !!(currentUser && currentUser.isAdmin)
-  document.querySelectorAll('.admin-only').forEach(el => {
-    el.classList.toggle('hidden', !isAdmin)
-  })
-}
-
 async function handleLogout() {
+  if (isOfflineDemo) {
+    isOfflineDemo = false
+    currentUser = null
+    document.getElementById('main-app').classList.add('hidden')
+    document.getElementById('auth-screen').classList.remove('hidden')
+    return
+  }
   await signOut()
 }
 
@@ -473,9 +559,7 @@ function switchTab(tabName) {
   }
 }
 
-// ---------------------------------------------------------------
-// RENDER
-// ---------------------------------------------------------------
+// RENDER & DASHBOARD
 function renderDashboard() {
   const totalEmps = employees.length || 1
   let totalWorkloadSum = 0, overloadCount = 0, optimalCount = 0, underloadCount = 0
@@ -504,6 +588,11 @@ function renderDashboard() {
   const tbody = document.getElementById('dashboard-priority-table-body')
   tbody.innerHTML = ''
 
+  if (sorted.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="6" class="text-center py-8 text-slate-400 italic">Belum ada data pegawai. Silakan daftarkan pegawai lewat form registrasi.</td></tr>`
+    return
+  }
+
   sorted.forEach(emp => {
     const tr = document.createElement('tr')
     tr.className = 'hover:bg-slate-50 transition'
@@ -527,7 +616,7 @@ function renderDashboard() {
 }
 
 function renderActivitiesTable() {
-  const searchQuery = document.getElementById('search-activity')?.value.toLowerCase()
+  const searchQuery = document.getElementById('search-activity')?.value.toLowerCase() || ''
   const filterDiv = document.getElementById('filter-activity-division')?.value
   const tbody = document.getElementById('activities-table-body')
   tbody.innerHTML = ''
@@ -548,9 +637,7 @@ function renderActivitiesTable() {
     const emp = employees.find(e => e.id === act.empId)
     const totalHours = (getNormaHours(act) * act.volume).toFixed(1)
     const status = getActivityStatus(act)
-    const isOwner = currentUser && currentUser.empId === act.empId
-    const isAdmin = currentUser && currentUser.isAdmin
-    const canManage = isAdmin || isOwner // admin: full edit; owner: hanya update progress (dikunci di modal)
+    const canManage = currentUser && (currentUser.isAdmin || currentUser.empId === act.empId)
 
     const tr = document.createElement('tr')
     tr.className = 'hover:bg-slate-50 transition'
@@ -570,8 +657,8 @@ function renderActivitiesTable() {
       </td>
       <td class="py-3.5 px-4 sm:px-6 text-center">
         ${canManage ? `
-          <button onclick="openModalEditActivity('${act.id}')" title="${isAdmin ? 'Edit Kegiatan' : 'Update Progress'}" class="p-1.5 text-slate-500 hover:text-bps-blue transition"><i class="fa-solid fa-pen-to-square"></i></button>
-          ${isAdmin ? `<button onclick="handleDeleteActivity('${act.id}')" title="Hapus Kegiatan" class="p-1.5 text-slate-500 hover:text-red-600 transition"><i class="fa-solid fa-trash-can"></i></button>` : ''}
+          <button onclick="openModalEditActivity('${act.id}')" title="Edit Kegiatan" class="p-1.5 text-slate-500 hover:text-bps-blue transition"><i class="fa-solid fa-pen-to-square"></i></button>
+          <button onclick="handleDeleteActivity('${act.id}')" title="Hapus Kegiatan" class="p-1.5 text-slate-500 hover:text-red-600 transition"><i class="fa-solid fa-trash-can"></i></button>
         ` : `<span class="text-xs text-slate-300 italic">-</span>`}
       </td>
     `
@@ -579,50 +666,8 @@ function renderActivitiesTable() {
   })
 }
 
-// ---------------------------------------------------------------
-// TAMBAH PEGAWAI LANGSUNG (khusus Admin) -- membuat baris profil tanpa
-// akun login. Kalau pegawai itu nanti mau login sendiri, dia daftar
-// manual terpisah (lihat catatan di supabase/schema.sql).
-// ---------------------------------------------------------------
-function openModalAddEmployee() {
-  if (!currentUser || !currentUser.isAdmin) return
-  document.getElementById('form-emp-name').value = ''
-  document.getElementById('form-emp-nip').value = ''
-  document.getElementById('form-emp-division').value = 'Subbagian Umum'
-  document.getElementById('form-emp-role').value = ''
-  document.getElementById('modal-add-employee').classList.remove('hidden')
-}
-
-function closeModalAddEmployee() {
-  document.getElementById('modal-add-employee').classList.add('hidden')
-}
-
-async function handleSaveNewEmployee(event) {
-  event.preventDefault()
-  const fullName = document.getElementById('form-emp-name').value.trim()
-  const nip = document.getElementById('form-emp-nip').value.trim()
-  const timKerja = document.getElementById('form-emp-division').value
-  const jabatan = document.getElementById('form-emp-role').value.trim()
-
-  if (!fullName || !nip || !jabatan) {
-    alert('Nama, NIP, dan Jabatan wajib diisi!')
-    return
-  }
-
-  try {
-    await adminCreateEmployee({ fullName, nip, timKerja, jabatan })
-    await loadAllDataFromSupabase()
-    closeModalAddEmployee()
-    refreshAllViews()
-    showToast('Pegawai baru berhasil ditambahkan!')
-  } catch (err) {
-    console.error('[SIMBAK] handleSaveNewEmployee error:', err)
-    showToast('Gagal menambahkan pegawai (cek koneksi/izin akses).')
-  }
-}
-
 function renderEmployeeGrid() {
-  const searchQuery = document.getElementById('search-employee')?.value.toLowerCase()
+  const searchQuery = document.getElementById('search-employee')?.value.toLowerCase() || ''
   const statusFilter = document.getElementById('filter-employee-status')?.value
   const container = document.getElementById('employee-grid-container')
   container.innerHTML = ''
@@ -636,7 +681,7 @@ function renderEmployeeGrid() {
   })
 
   if (filtered.length === 0) {
-    container.innerHTML = `<div class="col-span-full text-center py-8 text-slate-400 italic">Tidak ada pegawai yang ditemukan.</div>`
+    container.innerHTML = `<div class="col-span-full text-center py-8 text-slate-400 italic">Tidak ada pegawai yang ditemukan. Silakan tambahkan pegawai via form pendaftaran.</div>`
     return
   }
 
@@ -723,10 +768,10 @@ function renderCharts() {
     chartAnalyticsBarInstance = new Chart(ctxAnalyticsBar, {
       type: 'bar',
       data: {
-        labels: employees.map(e => e.name.split(',')[0]),
+        labels: employees.length ? employees.map(e => e.name.split(',')[0]) : ['Belum Ada Pegawai'],
         datasets: [
-          { label: 'Jam Terisi', data: employees.map(e => getEmployeeTotalHours(e.id)), backgroundColor: '#007BFF', borderRadius: 6 },
-          { label: 'Standar Jam (125h)', data: employees.map(() => STANDARD_EFF_HOURS), backgroundColor: '#E2E8F0', borderRadius: 6 }
+          { label: 'Jam Terisi', data: employees.length ? employees.map(e => getEmployeeTotalHours(e.id)) : [0], backgroundColor: '#007BFF', borderRadius: 6 },
+          { label: 'Standar Jam (125h)', data: employees.length ? employees.map(() => STANDARD_EFF_HOURS) : [STANDARD_EFF_HOURS], backgroundColor: '#E2E8F0', borderRadius: 6 }
         ]
       },
       options: { responsive: true, maintainAspectRatio: false }
@@ -749,7 +794,17 @@ function renderCharts() {
 
 function populateAssigneeSelect() {
   const select = document.getElementById('form-activity-assignee')
+  if (!select) return
   select.innerHTML = ''
+  
+  if (employees.length === 0) {
+    const opt = document.createElement('option')
+    opt.value = ''
+    opt.text = '-- Belum Ada Pegawai --'
+    select.appendChild(opt)
+    return
+  }
+
   employees.forEach(emp => {
     const opt = document.createElement('option')
     opt.value = emp.id
@@ -766,27 +821,8 @@ function calculateCalculatedHours() {
   document.getElementById('form-activity-calc-preview').innerText = `${(normInHours * vol).toFixed(2)} Jam Efektif`
 }
 
-// Field yang HANYA boleh diubah Admin (pegawai pemilik kegiatan cuma
-// boleh update progress miliknya sendiri).
-const ADMIN_ONLY_ACTIVITY_FIELDS = [
-  'form-activity-name', 'form-activity-assignee', 'form-activity-norm-val',
-  'form-activity-norm-unit', 'form-activity-volume', 'form-activity-start',
-  'form-activity-end'
-]
-
-function setActivityFormLocked(locked) {
-  ADMIN_ONLY_ACTIVITY_FIELDS.forEach(id => {
-    const el = document.getElementById(id)
-    if (el) el.disabled = locked
-  })
-  const hint = document.getElementById('modal-activity-lock-hint')
-  if (hint) hint.classList.toggle('hidden', !locked)
-}
-
 function openModalAddActivity() {
-  if (!currentUser || !currentUser.isAdmin) return // hanya admin yang boleh buat kegiatan baru
   populateAssigneeSelect()
-  setActivityFormLocked(false)
   document.getElementById('modal-activity-title').innerText = 'Tambah Kegiatan ABK Baru'
   document.getElementById('form-activity-id').value = ''
   document.getElementById('form-activity-name').value = ''
@@ -803,13 +839,8 @@ function openModalAddActivity() {
 function openModalEditActivity(actId) {
   const act = activities.find(a => a.id === actId)
   if (!act) return
-  const isAdmin = !!(currentUser && currentUser.isAdmin)
-  const isOwner = currentUser && currentUser.empId === act.empId
-  if (!isAdmin && !isOwner) return
-
   populateAssigneeSelect()
-  setActivityFormLocked(!isAdmin)
-  document.getElementById('modal-activity-title').innerText = isAdmin ? 'Edit Kegiatan ABK' : 'Update Progress Kegiatan'
+  document.getElementById('modal-activity-title').innerText = 'Edit Kegiatan ABK'
   document.getElementById('form-activity-id').value = act.id
   document.getElementById('form-activity-name').value = act.name
   document.getElementById('form-activity-assignee').value = act.empId
@@ -831,47 +862,66 @@ function closeModalActivity() {
 async function handleSaveActivity(event) {
   event.preventDefault()
   const id = document.getElementById('form-activity-id').value
-  const isAdmin = !!(currentUser && currentUser.isAdmin)
-  if (!id && !isAdmin) return // hanya admin yang boleh membuat kegiatan baru (dijamin juga oleh RLS)
-  const name = document.getElementById('form-activity-name').value
+  const name = document.getElementById('form-activity-name').value.trim()
   const empId = document.getElementById('form-activity-assignee').value
-  const normVal = parseFloat(document.getElementById('form-activity-norm-val').value)
+  const normVal = parseFloat(document.getElementById('form-activity-norm-val').value) || 0
   const normUnit = document.getElementById('form-activity-norm-unit').value
-  const volume = parseFloat(document.getElementById('form-activity-volume').value)
+  const volume = parseFloat(document.getElementById('form-activity-volume').value) || 0
   const startDate = document.getElementById('form-activity-start').value
   const endDate = document.getElementById('form-activity-end').value
-  const progress = parseInt(document.getElementById('form-activity-progress').value)
+  const progress = parseInt(document.getElementById('form-activity-progress').value) || 0
+
+  if (!empId) {
+    alert('Silakan daftarkan atau pilih Penanggung Jawab terlebih dahulu!')
+    return
+  }
 
   const payload = { name, empId, normVal, normUnit, volume, startDate, endDate, progress }
 
   try {
-    if (id) {
-      await updateActivity(id, payload)
-      showToast('Kegiatan ABK diperbarui!')
+    if (isOfflineDemo) {
+      if (id) {
+        const index = activities.findIndex(a => a.id === id)
+        if (index !== -1) activities[index] = { id, ...payload }
+        showToast('Kegiatan ABK diperbarui!')
+      } else {
+        const newId = `ACT-${String(activities.length + 1).padStart(2, '0')}`
+        activities.push({ id: newId, ...payload })
+        showToast('Kegiatan ABK baru ditambahkan!')
+      }
     } else {
-      await insertActivity(payload)
-      showToast('Kegiatan ABK baru ditambahkan!')
+      if (id) {
+        await updateActivity(id, payload)
+        showToast('Kegiatan ABK diperbarui!')
+      } else {
+        await insertActivity(payload)
+        showToast('Kegiatan ABK baru ditambahkan!')
+      }
+      await loadAllDataFromSupabase()
     }
-    await loadAllDataFromSupabase()
 
     closeModalActivity()
     refreshAllViews()
   } catch (err) {
     console.error('[SIMBAK] handleSaveActivity error:', err)
-    showToast('Gagal menyimpan kegiatan (cek koneksi/izin akses).')
+    showToast('Gagal menyimpan kegiatan.')
   }
 }
 
 async function handleDeleteActivity(actId) {
   if (!confirm('Yakin ingin menghapus kegiatan ini?')) return
   try {
-    await deleteActivity(actId)
-    await loadAllDataFromSupabase()
+    if (isOfflineDemo) {
+      activities = activities.filter(a => a.id !== actId)
+    } else {
+      await deleteActivity(actId)
+      await loadAllDataFromSupabase()
+    }
     showToast('Kegiatan dihapus.')
     refreshAllViews()
   } catch (err) {
     console.error('[SIMBAK] handleDeleteActivity error:', err)
-    showToast('Gagal menghapus kegiatan (cek koneksi/izin akses).')
+    showToast('Gagal menghapus kegiatan.')
   }
 }
 
@@ -934,6 +984,7 @@ function closeModalEmployeeDetail() {
 
 function showToast(msg) {
   const toast = document.getElementById('toast')
+  if (!toast) return
   document.getElementById('toast-message').innerText = msg
   toast.classList.remove('translate-y-20', 'opacity-0')
   toast.classList.add('translate-y-0', 'opacity-100')
@@ -968,9 +1019,7 @@ function exportAllCSV() {
   showToast("Laporan CSV diunduh!")
 }
 
-// ---------------------------------------------------------------
-// EXPOSE ke window (supaya onclick="..." di HTML tetap jalan)
-// ---------------------------------------------------------------
+// EXPOSE KE WINDOW
 Object.assign(window, {
   handleGoogleSignIn,
   handleCompleteProfileSubmit,
@@ -994,13 +1043,8 @@ Object.assign(window, {
   handleDeleteActivity,
   openModalEmployeeDetail,
   closeModalEmployeeDetail,
-  openModalAddEmployee,
-  closeModalAddEmployee,
-  handleSaveNewEmployee,
   exportAllCSV
 })
 
-// ---------------------------------------------------------------
 // START
-// ---------------------------------------------------------------
 init()
