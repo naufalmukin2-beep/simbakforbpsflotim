@@ -141,6 +141,7 @@ async function handleGoogleSignIn() {
   // sisanya ditangani oleh onAuthStateChange di init().
 }
 
+// main.js (Ganti fungsi handleCompleteProfileSubmit dengan kode ini)
 async function handleCompleteProfileSubmit(event) {
   event.preventDefault()
   const btn = document.getElementById('cp-submit-btn')
@@ -160,6 +161,11 @@ async function handleCompleteProfileSubmit(event) {
       return
     }
 
+    if (!pendingSessionUser) {
+      alert('Sesi login tidak terdeteksi. Silakan login ulang.')
+      return
+    }
+
     const meta = pendingSessionUser?.user_metadata || {}
     const profile = await completeProfile(pendingSessionUser.id, {
       fullName,
@@ -168,6 +174,10 @@ async function handleCompleteProfileSubmit(event) {
       jabatan: role,
       avatarUrl: meta.avatar_url || meta.picture || DEFAULT_PHOTO
     })
+
+    if (!profile) {
+      throw new Error('Data profil tidak berhasil disimpan di database.')
+    }
 
     currentUser = {
       id: profile.id,
@@ -520,8 +530,8 @@ function renderDashboard() {
 }
 
 function renderActivitiesTable() {
-  const searchQuery = document.getElementById('search-activity').value.toLowerCase()
-  const filterDiv = document.getElementById('filter-activity-division').value
+  const searchQuery = document.getElementById('search-activity')?.value.toLowerCase()
+  const filterDiv = document.getElementById('filter-activity-division')?.value
   const tbody = document.getElementById('activities-table-body')
   tbody.innerHTML = ''
 
@@ -571,8 +581,8 @@ function renderActivitiesTable() {
 }
 
 function renderEmployeeGrid() {
-  const searchQuery = document.getElementById('search-employee').value.toLowerCase()
-  const statusFilter = document.getElementById('filter-employee-status').value
+  const searchQuery = document.getElementById('search-employee')?.value.toLowerCase()
+  const statusFilter = document.getElementById('filter-employee-status')?.value
   const container = document.getElementById('employee-grid-container')
   container.innerHTML = ''
 

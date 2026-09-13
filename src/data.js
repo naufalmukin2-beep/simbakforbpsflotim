@@ -61,18 +61,19 @@ export async function fetchProfileByUserId(userId) {
   return data ? mapProfile(data) : null
 }
 
+// data.js (Ganti fungsi completeProfile dengan kode ini)
 export async function completeProfile(userId, { fullName, nip, timKerja, jabatan, avatarUrl }) {
   const { data, error } = await supabase
     .from('profiles')
-    .update({
+    .upsert({
+      user_id: userId,
       full_name: fullName,
-      nip,
+      nip: nip,
       tim_kerja: timKerja,
-      jabatan,
+      jabatan: jabatan,
       avatar_url: avatarUrl,
       profile_completed: true
-    })
-    .eq('user_id', userId)
+    }, { onConflict: 'user_id' })
     .select()
     .maybeSingle()
 
