@@ -1,11 +1,19 @@
 import { supabase } from './supabaseClient.js'
-import { signInWithGoogle, signOut, getSessionSafely } from './auth.js'
+import {
+  signInWithGoogle,
+  signOut,
+  getSessionSafely,
+  readOAuthErrorFromUrl,
+  signUpManual,
+  signInManual
+} from './auth.js'
 import {
   fetchEmployees,
   fetchActivities,
   fetchProfileByUserId,
   completeProfile,
   updateOwnProfile,
+  adminCreateEmployee,
   insertActivity,
   updateActivity,
   deleteActivity,
@@ -20,7 +28,6 @@ const STANDARD_EFF_HOURS = 125
 let currentUser = null       // { id, empId, isAdmin, name, role, userId }
 let employees = []
 let activities = []
-let isOfflineDemo = false     // true kalau pakai tombol "Demo Offline" (tanpa Supabase)
 let tempNewPhotoUrl = null
 let pendingSessionUser = null // user auth Supabase yang belum lengkapi profil
 
@@ -29,36 +36,19 @@ let chartStatusInstance = null
 let chartAnalyticsBarInstance = null
 let chartAnalyticsRadarInstance = null
 
-// Data dummy sebagai fallback "Demo Offline" -- tidak menyentuh Supabase sama
-// sekali, supaya presentasi tetap jalan walau wifi/OAuth bermasalah di lokasi demo.
-const DEMO_EMPLOYEES = [
-  { id: "EMP-01", nip: "198803122010121001", name: "Petrus L. Tukan, S.E.", division: "Subbagian Umum", role: "Pengelola SPM & DIPA Satker", photo: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80" },
-  { id: "EMP-02", nip: "199205142014022002", name: "Maria Goreti Fernandez, S.ST", division: "Tim IPDS", role: "Pranata Komputer Ahli Muda", photo: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80" },
-  { id: "EMP-03", nip: "198511202008011003", name: "Yoseph Kraeng, S.Si", division: "Tim Statistik Sosial", role: "Statisi Ahli Muda", photo: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80" },
-  { id: "EMP-04", nip: "199408092016021004", name: "Emanuel Hurint, S.Stat", division: "Tim Statistik Produksi", role: "Statisi Penyelia", photo: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80" },
-  { id: "EMP-05", nip: "199602012019012005", name: "Siti Aminah, S.Tr.Stat", division: "Tim Statistik Produksi", role: "Statisi Ahli Pertama", photo: "https://images.unsplash.com/photo-1580489944761-15a19d654956?w=150&auto=format&fit=crop&q=80" },
-  { id: "EMP-06", nip: "199004152012121006", name: "Fransiskus X. Lama, A.Md", division: "Tim Statistik Distribusi", role: "Penata Laksana Statistik", photo: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&auto=format&fit=crop&q=80" },
-  { id: "EMP-07", nip: "199109302015032007", name: "Theresia Maran, S.E.", division: "Tim Nerwilis", role: "Penata Laksana Keuangan", photo: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&auto=format&fit=crop&q=80" },
-  { id: "EMP-08", nip: "198707182009021008", name: "Yohanes B. Koten, A.Md", division: "Tim Nerwilis", role: "Pengelola BMN", photo: "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=150&auto=format&fit=crop&q=80" }
-]
-const DEMO_ACTIVITIES = [
-  { id: "ACT-01", name: "Pengelolaan SPM & DIPA Satker 5307", empId: "EMP-01", normVal: 3.5, normUnit: "jam", volume: 40, startDate: "2026-09-01T08:00", endDate: "2026-09-30T16:00", progress: 85 },
-  { id: "ACT-02", name: "Pemeliharaan Jaringan & Portal BPS", empId: "EMP-02", normVal: 2.0, normUnit: "jam", volume: 60, startDate: "2026-09-01T08:00", endDate: "2026-09-25T16:00", progress: 90 },
-  { id: "ACT-03", name: "Pencacahan Lapangan Susenas 2026", empId: "EMP-03", normVal: 3.55, normUnit: "jam", volume: 40, startDate: "2026-09-05T08:00", endDate: "2026-09-28T16:00", progress: 60 },
-  { id: "ACT-04", name: "Survei KSA Padi & Ubinan Tanaman", empId: "EMP-04", normVal: 4.0, normUnit: "jam", volume: 38, startDate: "2026-09-01T08:00", endDate: "2026-09-20T16:00", progress: 100 },
-  { id: "ACT-05", name: "Survei Pertanian & Hortikultura", empId: "EMP-05", normVal: 2.5, normUnit: "jam", volume: 46, startDate: "2026-09-10T08:00", endDate: "2026-09-30T16:00", progress: 40 },
-  { id: "ACT-06", name: "Survei Harga Konsumen Pasar Larantuka", empId: "EMP-06", normVal: 2.5, normUnit: "jam", volume: 50, startDate: "2026-09-01T08:00", endDate: "2026-09-28T16:00", progress: 75 },
-  { id: "ACT-07", name: "Penyusunan PDRB Kabupaten Flotim", empId: "EMP-07", normVal: 4.0, normUnit: "jam", volume: 23, startDate: "2026-09-12T08:00", endDate: "2026-09-29T16:00", progress: 30 },
-  { id: "ACT-08", name: "Analisis Neraca Wilayah & Laju Pertumbuhan", empId: "EMP-08", normVal: 2.0, normUnit: "jam", volume: 53.5, startDate: "2026-09-01T08:00", endDate: "2026-09-27T16:00", progress: 70 },
-  { id: "ACT-09", name: "Cetak Surat Tugas & Lembar Kendali", empId: "EMP-01", normVal: 3.0, normUnit: "menit", volume: 20, startDate: "2026-09-10T08:00", endDate: "2026-09-12T16:00", progress: 100 }
-]
-
 // ---------------------------------------------------------------
 // INIT / AUTH FLOW
 // (dibungkus try-catch total supaya kalau ada error apapun,
 // halaman TIDAK blank putih -- selalu jatuh balik ke layar login)
 // ---------------------------------------------------------------
 async function init() {
+  const oauthError = readOAuthErrorFromUrl()
+  if (oauthError) {
+    // Login Google ditolak database (mis. bukan email admin). Tampilkan
+    // sesudah layar login dirender supaya toast-nya kelihatan.
+    setTimeout(() => showToast(oauthError), 300)
+  }
+
   try {
     const session = await getSessionSafely()
     if (session) {
@@ -87,7 +77,6 @@ async function init() {
 
 async function handleAuthedSession(session) {
   try {
-    isOfflineDemo = false
     const profile = await fetchProfileByUserId(session.user.id)
 
     if (!profile || !profile.profileCompleted) {
@@ -202,57 +191,71 @@ async function handleCompleteProfileSubmit(event) {
 }
 
 // ---------------------------------------------------------------
-// DEMO OFFLINE (tanpa Supabase sama sekali -- fallback anti-gagal saat demo)
+// LOGIN / DAFTAR MANUAL -- pegawai (email asli + password). Ini akun
+// sungguhan di Supabase Auth, tersimpan real-time di database, sama
+// sekali tidak ada mode offline/lokal.
 // ---------------------------------------------------------------
-function quickDemoLogin(type) {
-  isOfflineDemo = true
-  employees = JSON.parse(JSON.stringify(DEMO_EMPLOYEES))
-  activities = JSON.parse(JSON.stringify(DEMO_ACTIVITIES))
+async function handleLoginSubmit() {
+  const btn = document.getElementById('login-submit-btn')
+  const originalText = btn ? btn.innerText : ''
+  try {
+    const email = document.getElementById('login-input-email').value.trim()
+    const password = document.getElementById('login-input-pass').value
 
-  if (type === 'ADMIN') {
-    currentUser = { id: "ADMIN", empId: "EMP-01", isAdmin: true, name: "Admin", role: "Kode Satker: 5307" }
-  } else {
-    currentUser = { id: "EMP-01", empId: "EMP-01", isAdmin: false, name: "Petrus L. Tukan, S.E.", role: "Subbagian Umum" }
+    if (!email || !password) {
+      alert('Email dan password wajib diisi!')
+      return
+    }
+
+    if (btn) { btn.disabled = true; btn.innerText = 'Memproses...' }
+    await signInManual({ email, password })
+    // Selanjutnya ditangani oleh onAuthStateChange (SIGNED_IN) di init().
+  } catch (err) {
+    console.error('[SIMBAK] handleLoginSubmit error:', err)
+    alert('Gagal login: ' + (err.message || err))
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerText = originalText }
   }
-  enterMainApp()
 }
 
-function handleLoginSubmit() {
-  isOfflineDemo = true
-  employees = JSON.parse(JSON.stringify(DEMO_EMPLOYEES))
-  activities = JSON.parse(JSON.stringify(DEMO_ACTIVITIES))
+async function handleRegisterSubmit() {
+  const btn = document.getElementById('register-submit-btn')
+  const originalText = btn ? btn.innerText : ''
+  try {
+    const name = document.getElementById('reg-name').value.trim()
+    const nip = document.getElementById('reg-nip').value.trim()
+    const division = document.getElementById('reg-division').value
+    const role = document.getElementById('reg-role').value.trim()
+    const email = document.getElementById('reg-email').value.trim()
+    const password = document.getElementById('reg-pass').value
 
-  const nipInput = document.getElementById('login-input-nip').value.trim()
-  const matchedEmp = employees.find(e => e.nip === nipInput || e.id === nipInput)
-  if (matchedEmp) {
-    currentUser = { id: matchedEmp.id, empId: matchedEmp.id, isAdmin: false, name: matchedEmp.name, role: matchedEmp.division }
-  } else {
-    currentUser = { id: "EMP-01", empId: "EMP-01", isAdmin: false, name: "Petrus L. Tukan, S.E.", role: "Subbagian Umum" }
+    if (!name || !nip || !role || !email || !password) {
+      alert('Semua kolom wajib diisi!')
+      return
+    }
+    if (password.length < 6) {
+      alert('Password minimal 6 karakter!')
+      return
+    }
+
+    if (btn) { btn.disabled = true; btn.innerText = 'Mendaftarkan...' }
+    const result = await signUpManual({ email, password, fullName: name, nip, timKerja: division, jabatan: role })
+
+    if (result.session) {
+      // Konfirmasi email nonaktif di project ini -> langsung dapat sesi.
+      await handleAuthedSession(result.session)
+      showToast('Akun berhasil dibuat. Selamat datang, ' + name + '!')
+    } else {
+      // Konfirmasi email aktif di project Supabase -> user harus cek inbox dulu.
+      alert('Akun berhasil didaftarkan. Silakan cek email kamu untuk konfirmasi sebelum login.')
+      toggleAuthTab('login')
+    }
+  } catch (err) {
+    console.error('[SIMBAK] handleRegisterSubmit error:', err)
+    alert('Gagal mendaftar: ' + (err.message || err))
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerText = originalText }
   }
-  enterMainApp()
-}
-
-function handleRegisterSubmit() {
-  isOfflineDemo = true
-  employees = JSON.parse(JSON.stringify(DEMO_EMPLOYEES))
-  activities = JSON.parse(JSON.stringify(DEMO_ACTIVITIES))
-
-  const name = document.getElementById('reg-name').value
-  const nip = document.getElementById('reg-nip').value
-  const division = document.getElementById('reg-division').value
-  const role = document.getElementById('reg-role').value
-
-  if (!name || !nip) return alert('Lengkapi nama dan NIP!')
-
-  const newEmp = {
-    id: `EMP-0${employees.length + 1}`,
-    nip, name, division, role,
-    photo: DEFAULT_PHOTO
-  }
-  employees.push(newEmp)
-  currentUser = { id: newEmp.id, empId: newEmp.id, isAdmin: false, name, role: division }
-  showToast('Akun demo (offline) berhasil dibuat!')
-  enterMainApp()
 }
 
 // ---------------------------------------------------------------
@@ -364,23 +367,13 @@ async function handleSaveProfile(event) {
   }
 
   try {
-    if (isOfflineDemo) {
-      currentUser.name = newName
-      const empIndex = employees.findIndex(e => e.id === currentUser.empId)
-      if (empIndex !== -1) {
-        employees[empIndex].name = newName
-        employees[empIndex].nip = newNip
-        if (tempNewPhotoUrl) employees[empIndex].photo = tempNewPhotoUrl
-      }
-    } else {
-      await updateOwnProfile(currentUser.userId, {
-        fullName: newName,
-        nip: newNip,
-        avatarUrl: tempNewPhotoUrl || undefined
-      })
-      currentUser.name = newName
-      await loadAllDataFromSupabase()
-    }
+    await updateOwnProfile(currentUser.userId, {
+      fullName: newName,
+      nip: newNip,
+      avatarUrl: tempNewPhotoUrl || undefined
+    })
+    currentUser.name = newName
+    await loadAllDataFromSupabase()
 
     updateUserBadgeUI()
     refreshAllViews()
@@ -435,18 +428,22 @@ function enterMainApp() {
   document.getElementById('main-app').classList.remove('hidden')
 
   updateUserBadgeUI()
+  updateAdminGatedUI()
   initTheme()
   refreshAllViews()
 }
 
+// Tampilkan/sembunyikan elemen yang hanya boleh dipakai Admin
+// (mis. "+ Tambah Kegiatan ABK", "+ Tambah Pegawai"). Elemen-elemen itu
+// diberi class "admin-only" di index.html.
+function updateAdminGatedUI() {
+  const isAdmin = !!(currentUser && currentUser.isAdmin)
+  document.querySelectorAll('.admin-only').forEach(el => {
+    el.classList.toggle('hidden', !isAdmin)
+  })
+}
+
 async function handleLogout() {
-  if (isOfflineDemo) {
-    isOfflineDemo = false
-    currentUser = null
-    document.getElementById('main-app').classList.add('hidden')
-    document.getElementById('auth-screen').classList.remove('hidden')
-    return
-  }
   await signOut()
 }
 
@@ -551,7 +548,9 @@ function renderActivitiesTable() {
     const emp = employees.find(e => e.id === act.empId)
     const totalHours = (getNormaHours(act) * act.volume).toFixed(1)
     const status = getActivityStatus(act)
-    const canManage = currentUser && (currentUser.isAdmin || currentUser.empId === act.empId)
+    const isOwner = currentUser && currentUser.empId === act.empId
+    const isAdmin = currentUser && currentUser.isAdmin
+    const canManage = isAdmin || isOwner // admin: full edit; owner: hanya update progress (dikunci di modal)
 
     const tr = document.createElement('tr')
     tr.className = 'hover:bg-slate-50 transition'
@@ -571,13 +570,55 @@ function renderActivitiesTable() {
       </td>
       <td class="py-3.5 px-4 sm:px-6 text-center">
         ${canManage ? `
-          <button onclick="openModalEditActivity('${act.id}')" title="Edit Kegiatan" class="p-1.5 text-slate-500 hover:text-bps-blue transition"><i class="fa-solid fa-pen-to-square"></i></button>
-          <button onclick="handleDeleteActivity('${act.id}')" title="Hapus Kegiatan" class="p-1.5 text-slate-500 hover:text-red-600 transition"><i class="fa-solid fa-trash-can"></i></button>
+          <button onclick="openModalEditActivity('${act.id}')" title="${isAdmin ? 'Edit Kegiatan' : 'Update Progress'}" class="p-1.5 text-slate-500 hover:text-bps-blue transition"><i class="fa-solid fa-pen-to-square"></i></button>
+          ${isAdmin ? `<button onclick="handleDeleteActivity('${act.id}')" title="Hapus Kegiatan" class="p-1.5 text-slate-500 hover:text-red-600 transition"><i class="fa-solid fa-trash-can"></i></button>` : ''}
         ` : `<span class="text-xs text-slate-300 italic">-</span>`}
       </td>
     `
     tbody.appendChild(tr)
   })
+}
+
+// ---------------------------------------------------------------
+// TAMBAH PEGAWAI LANGSUNG (khusus Admin) -- membuat baris profil tanpa
+// akun login. Kalau pegawai itu nanti mau login sendiri, dia daftar
+// manual terpisah (lihat catatan di supabase/schema.sql).
+// ---------------------------------------------------------------
+function openModalAddEmployee() {
+  if (!currentUser || !currentUser.isAdmin) return
+  document.getElementById('form-emp-name').value = ''
+  document.getElementById('form-emp-nip').value = ''
+  document.getElementById('form-emp-division').value = 'Subbagian Umum'
+  document.getElementById('form-emp-role').value = ''
+  document.getElementById('modal-add-employee').classList.remove('hidden')
+}
+
+function closeModalAddEmployee() {
+  document.getElementById('modal-add-employee').classList.add('hidden')
+}
+
+async function handleSaveNewEmployee(event) {
+  event.preventDefault()
+  const fullName = document.getElementById('form-emp-name').value.trim()
+  const nip = document.getElementById('form-emp-nip').value.trim()
+  const timKerja = document.getElementById('form-emp-division').value
+  const jabatan = document.getElementById('form-emp-role').value.trim()
+
+  if (!fullName || !nip || !jabatan) {
+    alert('Nama, NIP, dan Jabatan wajib diisi!')
+    return
+  }
+
+  try {
+    await adminCreateEmployee({ fullName, nip, timKerja, jabatan })
+    await loadAllDataFromSupabase()
+    closeModalAddEmployee()
+    refreshAllViews()
+    showToast('Pegawai baru berhasil ditambahkan!')
+  } catch (err) {
+    console.error('[SIMBAK] handleSaveNewEmployee error:', err)
+    showToast('Gagal menambahkan pegawai (cek koneksi/izin akses).')
+  }
 }
 
 function renderEmployeeGrid() {
@@ -725,8 +766,27 @@ function calculateCalculatedHours() {
   document.getElementById('form-activity-calc-preview').innerText = `${(normInHours * vol).toFixed(2)} Jam Efektif`
 }
 
+// Field yang HANYA boleh diubah Admin (pegawai pemilik kegiatan cuma
+// boleh update progress miliknya sendiri).
+const ADMIN_ONLY_ACTIVITY_FIELDS = [
+  'form-activity-name', 'form-activity-assignee', 'form-activity-norm-val',
+  'form-activity-norm-unit', 'form-activity-volume', 'form-activity-start',
+  'form-activity-end'
+]
+
+function setActivityFormLocked(locked) {
+  ADMIN_ONLY_ACTIVITY_FIELDS.forEach(id => {
+    const el = document.getElementById(id)
+    if (el) el.disabled = locked
+  })
+  const hint = document.getElementById('modal-activity-lock-hint')
+  if (hint) hint.classList.toggle('hidden', !locked)
+}
+
 function openModalAddActivity() {
+  if (!currentUser || !currentUser.isAdmin) return // hanya admin yang boleh buat kegiatan baru
   populateAssigneeSelect()
+  setActivityFormLocked(false)
   document.getElementById('modal-activity-title').innerText = 'Tambah Kegiatan ABK Baru'
   document.getElementById('form-activity-id').value = ''
   document.getElementById('form-activity-name').value = ''
@@ -743,8 +803,13 @@ function openModalAddActivity() {
 function openModalEditActivity(actId) {
   const act = activities.find(a => a.id === actId)
   if (!act) return
+  const isAdmin = !!(currentUser && currentUser.isAdmin)
+  const isOwner = currentUser && currentUser.empId === act.empId
+  if (!isAdmin && !isOwner) return
+
   populateAssigneeSelect()
-  document.getElementById('modal-activity-title').innerText = 'Edit Kegiatan ABK'
+  setActivityFormLocked(!isAdmin)
+  document.getElementById('modal-activity-title').innerText = isAdmin ? 'Edit Kegiatan ABK' : 'Update Progress Kegiatan'
   document.getElementById('form-activity-id').value = act.id
   document.getElementById('form-activity-name').value = act.name
   document.getElementById('form-activity-assignee').value = act.empId
@@ -766,6 +831,8 @@ function closeModalActivity() {
 async function handleSaveActivity(event) {
   event.preventDefault()
   const id = document.getElementById('form-activity-id').value
+  const isAdmin = !!(currentUser && currentUser.isAdmin)
+  if (!id && !isAdmin) return // hanya admin yang boleh membuat kegiatan baru (dijamin juga oleh RLS)
   const name = document.getElementById('form-activity-name').value
   const empId = document.getElementById('form-activity-assignee').value
   const normVal = parseFloat(document.getElementById('form-activity-norm-val').value)
@@ -778,26 +845,14 @@ async function handleSaveActivity(event) {
   const payload = { name, empId, normVal, normUnit, volume, startDate, endDate, progress }
 
   try {
-    if (isOfflineDemo) {
-      if (id) {
-        const index = activities.findIndex(a => a.id === id)
-        if (index !== -1) activities[index] = { id, ...payload }
-        showToast('Kegiatan ABK diperbarui!')
-      } else {
-        const newId = `ACT-${String(activities.length + 1).padStart(2, '0')}`
-        activities.push({ id: newId, ...payload })
-        showToast('Kegiatan ABK baru ditambahkan!')
-      }
+    if (id) {
+      await updateActivity(id, payload)
+      showToast('Kegiatan ABK diperbarui!')
     } else {
-      if (id) {
-        await updateActivity(id, payload)
-        showToast('Kegiatan ABK diperbarui!')
-      } else {
-        await insertActivity(payload)
-        showToast('Kegiatan ABK baru ditambahkan!')
-      }
-      await loadAllDataFromSupabase()
+      await insertActivity(payload)
+      showToast('Kegiatan ABK baru ditambahkan!')
     }
+    await loadAllDataFromSupabase()
 
     closeModalActivity()
     refreshAllViews()
@@ -810,12 +865,8 @@ async function handleSaveActivity(event) {
 async function handleDeleteActivity(actId) {
   if (!confirm('Yakin ingin menghapus kegiatan ini?')) return
   try {
-    if (isOfflineDemo) {
-      activities = activities.filter(a => a.id !== actId)
-    } else {
-      await deleteActivity(actId)
-      await loadAllDataFromSupabase()
-    }
+    await deleteActivity(actId)
+    await loadAllDataFromSupabase()
     showToast('Kegiatan dihapus.')
     refreshAllViews()
   } catch (err) {
@@ -923,7 +974,6 @@ function exportAllCSV() {
 Object.assign(window, {
   handleGoogleSignIn,
   handleCompleteProfileSubmit,
-  quickDemoLogin,
   handleLoginSubmit,
   handleRegisterSubmit,
   toggleSidebar,
@@ -944,6 +994,9 @@ Object.assign(window, {
   handleDeleteActivity,
   openModalEmployeeDetail,
   closeModalEmployeeDetail,
+  openModalAddEmployee,
+  closeModalAddEmployee,
+  handleSaveNewEmployee,
   exportAllCSV
 })
 

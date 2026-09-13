@@ -133,39 +133,27 @@
 
                 <div class="flex items-center gap-3 py-1">
                     <div class="flex-1 h-px bg-slate-200"></div>
-                    <span class="text-[10px] font-bold text-slate-400 uppercase">atau demo offline</span>
+                    <span class="text-[10px] font-bold text-slate-400 uppercase">atau login pegawai</span>
                     <div class="flex-1 h-px bg-slate-200"></div>
                 </div>
 
                 <div>
-                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">NIP / Email BPS</label>
-                    <input type="text" id="login-input-nip" placeholder="198803122010121001 atau email" value="198511202008011003" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-bps-blue focus:outline-none">
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Email</label>
+                    <input type="email" id="login-input-email" placeholder="nama@email.com" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-bps-blue focus:outline-none">
                 </div>
                 <div>
                     <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Password</label>
-                    <input type="password" id="login-input-pass" value="password" placeholder="••••••••" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-bps-blue focus:outline-none">
+                    <input type="password" id="login-input-pass" placeholder="••••••••" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-bps-blue focus:outline-none">
                 </div>
 
-                <button onclick="handleLoginSubmit()" class="w-full py-3 bg-bps-blue hover:bg-blue-600 text-white font-bold rounded-xl text-sm transition shadow-md">
+                <button id="login-submit-btn" onclick="handleLoginSubmit()" class="w-full py-3 bg-bps-blue hover:bg-blue-600 text-white font-bold rounded-xl text-sm transition shadow-md">
                     Masuk ke Sistem
                 </button>
-
-                <div class="pt-4 border-t border-slate-100">
-                    <p class="text-[11px] font-bold uppercase text-slate-400 text-center mb-2">Akses Cepat Demo Preset:</p>
-                    <div class="grid grid-cols-2 gap-2 text-xs">
-                        <button onclick="quickDemoLogin('ADMIN')" class="p-2 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-700 text-left transition font-medium">
-                            <i class="fa-solid fa-user-shield text-bps-blue mr-1"></i> Admin / Kasubag
-                        </button>
-                        <button onclick="quickDemoLogin('STAFF')" class="p-2 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-700 text-left transition font-medium">
-                            <i class="fa-solid fa-user-tie text-bps-accent mr-1"></i> Petrus L. (Statisi)
-                        </button>
-                    </div>
-                </div>
             </div>
 
             <div id="auth-form-register" class="p-6 space-y-3.5 hidden">
                 <p class="text-[11px] text-slate-500 bg-slate-50 border border-slate-200 rounded-lg p-2.5 leading-relaxed">
-                    Mode ini hanya untuk simulasi lokal (tidak tersimpan ke server). Untuk akun sungguhan, gunakan tombol <strong>"Lanjutkan dengan Google"</strong> di tab Masuk / Login.
+                    Pendaftaran ini untuk <strong>pegawai</strong> (bukan admin). Akun tersimpan langsung ke server/database.
                 </p>
                 <div>
                     <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Nama Lengkap & Gelar</label>
@@ -193,11 +181,15 @@
                     </div>
                 </div>
                 <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Email</label>
+                    <input type="email" id="reg-email" placeholder="nama@email.com" class="w-full px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-bps-blue focus:outline-none">
+                </div>
+                <div>
                     <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Password</label>
-                    <input type="password" id="reg-pass" placeholder="••••••••" class="w-full px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-bps-blue focus:outline-none">
+                    <input type="password" id="reg-pass" placeholder="Minimal 6 karakter" class="w-full px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-bps-blue focus:outline-none">
                 </div>
 
-                <button onclick="handleRegisterSubmit()" class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-sm transition shadow-md">
+                <button id="register-submit-btn" onclick="handleRegisterSubmit()" class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-sm transition shadow-md">
                     Daftar Akun
                 </button>
             </div>
@@ -307,7 +299,7 @@
                     </div>
                     <div class="overflow-hidden">
                         <p id="user-name-badge" class="text-xs font-semibold text-white truncate group-hover:text-bps-blue transition">Administrator BPS</p>
-                        <p id="user-role-badge" class="text-[10px] text-slate-400 truncate">Kode Satker: 5307</p>
+                        <p id="user-role-badge" class="text-[10px] text-slate-400 truncate">Kode Satker: 5309</p>
                     </div>
                 </div>
                 <div class="flex items-center space-x-1">
@@ -328,7 +320,7 @@
                     <button onclick="toggleSidebar()" class="md:hidden p-2 text-slate-600 hover:bg-slate-100 rounded-lg focus:outline-none">
                         <i id="sidebar-toggle-icon" class="fa-solid fa-bars text-xl"></i>
                     </button>
-                    <span class="hidden sm:inline-block text-xs font-semibold uppercase px-2.5 py-1 bg-blue-50 text-bps-blue rounded-md border border-blue-100">Satker 5307</span>
+                    <span class="hidden sm:inline-block text-xs font-semibold uppercase px-2.5 py-1 bg-blue-50 text-bps-blue rounded-md border border-blue-100">Satker 5309</span>
                     <h2 id="page-title" class="text-base sm:text-xl font-bold text-slate-800 truncate">Dashboard Beban Kerja</h2>
                 </div>
                 
@@ -483,7 +475,7 @@
                             </select>
                         </div>
 
-                        <button onclick="openModalAddActivity()" class="w-full sm:w-auto bg-bps-blue hover:bg-blue-600 text-white px-4 py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center space-x-2 transition shadow-sm">
+                        <button onclick="openModalAddActivity()" class="admin-only hidden w-full sm:w-auto bg-bps-blue hover:bg-blue-600 text-white px-4 py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center space-x-2 transition shadow-sm">
                             <i class="fa-solid fa-plus"></i>
                             <span>+ Tambah Kegiatan ABK</span>
                         </button>
@@ -526,6 +518,11 @@
                                 <option value="UNDERLOAD">Underload (&lt;50%)</option>
                             </select>
                         </div>
+
+                        <button onclick="openModalAddEmployee()" class="admin-only hidden w-full md:w-auto bg-bps-blue hover:bg-blue-600 text-white px-4 py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center space-x-2 transition shadow-sm">
+                            <i class="fa-solid fa-user-plus"></i>
+                            <span>+ Tambah Pegawai</span>
+                        </button>
                     </div>
 
                     <div id="employee-grid-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
@@ -594,10 +591,8 @@
                   <div class="footer-col">
                     <h4 class="col-title">Tautan Cepat</h4>
                     <ul class="footer-links">
-                      <li><a href="#">Beranda</a></li>
-                      <li><a href="#">Tentang Kami</a></li>
-                      <li><a href="#">Layanan PST</a></li>
-                      <li><a href="#">Hubungi Kami</a></li>
+                      <li><a href="index.html">Beranda</a></li>
+
                     </ul>
                   </div>
 
@@ -717,6 +712,9 @@
             
             <form id="form-activity" onsubmit="handleSaveActivity(event)" class="p-6 space-y-4">
                 <input type="hidden" id="form-activity-id">
+                <p id="modal-activity-lock-hint" class="hidden text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-2.5 leading-relaxed">
+                    Kamu hanya bisa mengubah persentase progress. Detail kegiatan lainnya cuma bisa diubah Admin.
+                </p>
                 <div>
                     <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Nama Kegiatan ABK</label>
                     <input type="text" id="form-activity-name" required placeholder="Contoh: Cetak Surat Tugas & Lembar Kendali" class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-bps-blue focus:outline-none">
@@ -772,6 +770,57 @@
                 <div class="flex items-center justify-end space-x-3 pt-3 border-t border-slate-100">
                     <button type="button" onclick="closeModalActivity()" class="px-4 py-2 bg-slate-100 text-slate-600 hover:bg-slate-200 rounded-xl text-xs font-semibold transition">Batal</button>
                     <button type="submit" class="px-5 py-2 bg-bps-blue hover:bg-blue-600 text-white rounded-xl text-xs font-semibold transition shadow-sm">Simpan Kegiatan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: TAMBAH PEGAWAI (khusus Admin) -->
+    <div id="modal-add-employee" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4 overflow-y-auto">
+        <div class="bg-white rounded-3xl shadow-2xl border border-slate-200 w-full max-w-md overflow-hidden animate-fade-in my-8">
+            <div class="bg-bps-navy p-5 text-white flex items-center justify-between">
+                <div class="flex items-center space-x-2">
+                    <i class="fa-solid fa-user-plus text-bps-accent"></i>
+                    <h3 class="font-bold text-base">Tambah Pegawai</h3>
+                </div>
+                <button onclick="closeModalAddEmployee()" class="text-slate-300 hover:text-white">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <form id="form-add-employee" onsubmit="handleSaveNewEmployee(event)" class="p-6 space-y-4">
+                <p class="text-[11px] text-slate-500 bg-slate-50 border border-slate-200 rounded-lg p-2.5 leading-relaxed">
+                    Pegawai ini belum punya akun login. Kalau nanti perlu login sendiri, dia bisa daftar manual lewat layar login (email asli + password).
+                </p>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Nama Lengkap & Gelar</label>
+                    <input type="text" id="form-emp-name" required placeholder="Contoh: Ahmad Subagyo, SST" class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-bps-blue focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">NIP (18 Digit)</label>
+                    <input type="text" id="form-emp-nip" required placeholder="1995xxxxxxxxxxxxxx" class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-bps-blue focus:outline-none">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Tim Kerja</label>
+                        <select id="form-emp-division" class="w-full px-3 py-2.5 border border-slate-300 rounded-xl text-xs focus:ring-2 focus:ring-bps-blue focus:outline-none">
+                            <option value="Subbagian Umum">Subbagian Umum</option>
+                            <option value="Tim Statistik Sosial">Statistik Sosial</option>
+                            <option value="Tim Statistik Produksi">Statistik Produksi</option>
+                            <option value="Tim Statistik Distribusi">Statistik Distribusi</option>
+                            <option value="Tim Nerwilis">Tim Nerwilis</option>
+                            <option value="Tim IPDS">Tim IPDS</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Jabatan</label>
+                        <input type="text" id="form-emp-role" required placeholder="Statisi Ahli Muda" class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-xs focus:ring-2 focus:ring-bps-blue focus:outline-none">
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-end space-x-3 pt-3 border-t border-slate-100">
+                    <button type="button" onclick="closeModalAddEmployee()" class="px-4 py-2 bg-slate-100 text-slate-600 hover:bg-slate-200 rounded-xl text-xs font-semibold transition">Batal</button>
+                    <button type="submit" class="px-5 py-2 bg-bps-blue hover:bg-blue-600 text-white rounded-xl text-xs font-semibold transition shadow-sm">Simpan Pegawai</button>
                 </div>
             </form>
         </div>

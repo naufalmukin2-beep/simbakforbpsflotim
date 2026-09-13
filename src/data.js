@@ -81,6 +81,28 @@ export async function completeProfile(userId, { fullName, nip, timKerja, jabatan
   return data ? mapProfile(data) : null
 }
 
+// Dipakai Admin untuk menambahkan pegawai langsung dari menu Direktori
+// Pegawai, TANPA akun login (user_id kosong). Kalau pegawai itu nanti
+// daftar sendiri, dia akan dapat baris profil baru yang terpisah --
+// admin tinggal hapus salah satu manual kalau terjadi duplikat.
+export async function adminCreateEmployee({ fullName, nip, timKerja, jabatan }) {
+  const { data, error } = await supabase
+    .from('profiles')
+    .insert({
+      full_name: fullName,
+      nip,
+      tim_kerja: timKerja,
+      jabatan,
+      is_admin: false,
+      profile_completed: true
+    })
+    .select()
+    .single()
+
+  if (error) throw error
+  return mapProfile(data)
+}
+
 export async function updateOwnProfile(userId, { fullName, nip, avatarUrl }) {
   const payload = { full_name: fullName, nip }
   if (avatarUrl) payload.avatar_url = avatarUrl
