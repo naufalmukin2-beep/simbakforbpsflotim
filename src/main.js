@@ -766,16 +766,14 @@ function calculateCalculatedHours() {
   document.getElementById('form-activity-calc-preview').innerText = `${(normInHours * vol).toFixed(2)} Jam Efektif`
 }
 
-// Field yang HANYA boleh diubah Admin (pegawai pemilik kegiatan cuma
-// boleh update progress miliknya sendiri).
-const ADMIN_ONLY_ACTIVITY_FIELDS = [
-  'form-activity-name', 'form-activity-assignee', 'form-activity-norm-val',
-  'form-activity-norm-unit', 'form-activity-volume', 'form-activity-start',
-  'form-activity-end'
-]
+// Field yang dikunci buat pegawai (bukan admin): cuma "Penanggung Jawab"
+// yang dikunci ke diri sendiri (nggak bisa nge-assign ke orang lain).
+// Field lainnya (nama kegiatan, norma, volume, tanggal, progress) BOLEH
+// diubah pegawai kalau itu kegiatan miliknya sendiri.
+const OWNER_LOCKED_ACTIVITY_FIELDS = ['form-activity-assignee']
 
 function setActivityFormLocked(locked) {
-  ADMIN_ONLY_ACTIVITY_FIELDS.forEach(id => {
+  OWNER_LOCKED_ACTIVITY_FIELDS.forEach(id => {
     const el = document.getElementById(id)
     if (el) el.disabled = locked
   })
@@ -784,9 +782,9 @@ function setActivityFormLocked(locked) {
 }
 
 function openModalAddActivity() {
-  if (!currentUser || !currentUser.isAdmin) return // hanya admin yang boleh buat kegiatan baru
+  if (!currentUser) return
+  const isAdmin = !!currentUser.isAdmin
   populateAssigneeSelect()
-  setActivityFormLocked(false)
   document.getElementById('modal-activity-title').innerText = 'Tambah Kegiatan ABK Baru'
   document.getElementById('form-activity-id').value = ''
   document.getElementById('form-activity-name').value = ''
@@ -796,6 +794,12 @@ function openModalAddActivity() {
   document.getElementById('form-activity-end').value = '2026-09-25T16:00'
   document.getElementById('form-activity-progress').value = 0
   document.getElementById('form-activity-progress-label').innerText = '0%'
+
+  if (!isAdmin) {
+    // Pegawai cuma boleh bikin kegiatan buat dirinya sendiri.
+    document.getElementById('form-activity-assignee').value = currentUser.empId
+  }
+  setActivityFormLocked(!isAdmin)
   calculateCalculatedHours()
   document.getElementById('modal-activity').classList.remove('hidden')
 }
@@ -809,7 +813,7 @@ function openModalEditActivity(actId) {
 
   populateAssigneeSelect()
   setActivityFormLocked(!isAdmin)
-  document.getElementById('modal-activity-title').innerText = isAdmin ? 'Edit Kegiatan ABK' : 'Update Progress Kegiatan'
+  document.getElementById('modal-activity-title').innerText = isAdmin ? 'Edit Kegiatan ABK' : 'Edit Kegiatan Saya'
   document.getElementById('form-activity-id').value = act.id
   document.getElementById('form-activity-name').value = act.name
   document.getElementById('form-activity-assignee').value = act.empId
@@ -832,9 +836,10 @@ async function handleSaveActivity(event) {
   event.preventDefault()
   const id = document.getElementById('form-activity-id').value
   const isAdmin = !!(currentUser && currentUser.isAdmin)
-  if (!id && !isAdmin) return // hanya admin yang boleh membuat kegiatan baru (dijamin juga oleh RLS)
   const name = document.getElementById('form-activity-name').value
-  const empId = document.getElementById('form-activity-assignee').value
+  let empId = document.getElementById('form-activity-assignee').value
+  if (!isAdmin) empId = currentUser.empId // paksa ke diri sendiri, jaga-jaga field ke-utak-atik
+  if (!isAdmin && !id && empId !== currentUser.empId) return // pegawai cuma boleh assign ke diri sendiri
   const normVal = parseFloat(document.getElementById('form-activity-norm-val').value)
   const normUnit = document.getElementById('form-activity-norm-unit').value
   const volume = parseFloat(document.getElementById('form-activity-volume').value)

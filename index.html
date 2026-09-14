@@ -475,7 +475,7 @@
                             </select>
                         </div>
 
-                        <button onclick="openModalAddActivity()" class="admin-only hidden w-full sm:w-auto bg-bps-blue hover:bg-blue-600 text-white px-4 py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center space-x-2 transition shadow-sm">
+                        <button onclick="openModalAddActivity()" class="w-full sm:w-auto bg-bps-blue hover:bg-blue-600 text-white px-4 py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center space-x-2 transition shadow-sm">
                             <i class="fa-solid fa-plus"></i>
                             <span>+ Tambah Kegiatan ABK</span>
                         </button>
@@ -713,7 +713,7 @@
             <form id="form-activity" onsubmit="handleSaveActivity(event)" class="p-6 space-y-4">
                 <input type="hidden" id="form-activity-id">
                 <p id="modal-activity-lock-hint" class="hidden text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-2.5 leading-relaxed">
-                    Kamu hanya bisa mengubah persentase progress. Detail kegiatan lainnya cuma bisa diubah Admin.
+                    Penanggung jawab terkunci ke akunmu sendiri — kamu cuma bisa membuat/mengubah kegiatan untuk dirimu sendiri.
                 </p>
                 <div>
                     <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Nama Kegiatan ABK</label>

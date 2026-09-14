@@ -21,7 +21,7 @@ returns text
 language sql
 immutable
 as $$
-  select 'naufalmukin2@gmail.com'
+  select 'GANTI_DENGAN_EMAIL_GOOGLE_ADMIN@gmail.com'
 $$;
 
 -- ------------------------------------------------------------
@@ -222,11 +222,21 @@ create policy "activities_select_authenticated"
   on public.activities for select
   using (auth.role() = 'authenticated');
 
--- Hanya ADMIN yang boleh membuat kegiatan ABK baru & menugaskannya.
+-- (lihat policy insert di bawah -- admin bisa untuk siapapun, pegawai
+-- cuma boleh assign ke dirinya sendiri.)
+-- Admin boleh membuat kegiatan untuk siapapun. Pegawai boleh membuat
+-- kegiatan HANYA untuk dirinya sendiri (assignee_id = profil miliknya).
 drop policy if exists "activities_insert_admin" on public.activities;
-create policy "activities_insert_admin"
+drop policy if exists "activities_insert_admin_or_own" on public.activities;
+create policy "activities_insert_admin_or_own"
   on public.activities for insert
-  with check (public.is_current_user_admin());
+  with check (
+    public.is_current_user_admin()
+    or exists (
+      select 1 from public.profiles p
+      where p.id = activities.assignee_id and p.user_id = auth.uid()
+    )
+  );
 
 -- Admin boleh update kegiatan siapapun. Pegawai HANYA boleh update
 -- kegiatan yang assignee_id-nya adalah dirinya sendiri (mis. update
