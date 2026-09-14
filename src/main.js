@@ -745,6 +745,31 @@ function renderCharts() {
       options: { responsive: true, maintainAspectRatio: false }
     })
   }
+
+  // Ringkasan Analisis Beban Kerja Satker -- DIHITUNG dari data asli
+  // (sebelumnya ini teks statis dari template, sekarang dinamis).
+  const highestEl = document.getElementById('highest-section-info')
+  const lowestEl = document.getElementById('lowest-section-info')
+  const recEl = document.getElementById('recommendation-info')
+  const divWithData = divisions
+    .map((div, i) => ({ div, avg: divAvgData[i], count: employees.filter(e => e.division === div).length }))
+    .filter(d => d.count > 0)
+
+  if (divWithData.length === 0) {
+    if (highestEl) highestEl.innerText = 'Belum ada data pegawai untuk dianalisis.'
+    if (lowestEl) lowestEl.innerText = 'Belum ada data pegawai untuk dianalisis.'
+    if (recEl) recEl.innerText = 'Tambahkan pegawai & kegiatan ABK dulu supaya rekomendasi bisa dihitung.'
+  } else {
+    const highest = divWithData.reduce((a, b) => (b.avg > a.avg ? b : a))
+    const lowest = divWithData.reduce((a, b) => (b.avg < a.avg ? b : a))
+    if (highestEl) highestEl.innerText = `${highest.div} memiliki rata-rata beban tertinggi (${highest.avg}%). ${highest.avg > 100 ? 'Disarankan untuk membagi tugas lapangan.' : 'Masih dalam batas wajar.'}`
+    if (lowestEl) lowestEl.innerText = `${lowest.div} memiliki kapasitas paling longgar (sisa ${(100 - lowest.avg).toFixed(1)}%). Dapat diperdayakan untuk membantu fungsi lain.`
+    if (recEl) {
+      recEl.innerText = highest.avg > 100
+        ? `Pertimbangkan realokasi sebagian tugas dari ${highest.div} ke ${lowest.div} untuk menyeimbangkan beban kerja.`
+        : 'Beban kerja antar tim masih dalam batas wajar, belum ada yang perlu direalokasi.'
+    }
+  }
 }
 
 function populateAssigneeSelect() {
