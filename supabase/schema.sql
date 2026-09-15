@@ -278,3 +278,20 @@ create policy "activities_delete_admin"
 -- 4. Admin juga bisa menambahkan pegawai langsung dari menu
 --    "Direktori Pegawai > + Tambah Pegawai" (tanpa akun login dulu).
 -- ============================================================
+
+
+-- diagnostis check
+-- Cek 1: email admin yang KESIMPAN di database sekarang
+select public.admin_email() as configured_admin_email;
+
+-- Cek 2: 5 baris profil paling baru -- buat lihat apakah baris baru
+-- kebentuk pas kamu coba "Lengkapi Profil" tadi, dan is_admin-nya berapa
+select id, user_id, email, is_admin, profile_completed, nip, full_name, created_at
+from public.profiles
+order by created_at desc
+limit 5;
+
+-- Cek 3: isi lengkap policy insert yang aktif sekarang di tabel profiles
+select policyname, cmd, qual, with_check
+from pg_policies
+where schemaname = 'public' and tablename = 'profiles';
