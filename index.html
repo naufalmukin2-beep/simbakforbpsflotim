@@ -160,7 +160,8 @@
                 </div>
                 <div>
                     <label class="block text-xs font-bold text-slate-700 uppercase mb-1">NIP (18 Digit)</label>
-                    <input type="text" id="reg-nip" placeholder="1995xxxxxxxxxxxxxx" class="w-full px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-bps-blue focus:outline-none">
+                    <input type="text" id="reg-nip" onblur="handleRegNipBlur()" placeholder="1995xxxxxxxxxxxxxx" class="w-full px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-bps-blue focus:outline-none">
+                    <p id="reg-nip-hint" class="hidden mt-1.5"></p>
                 </div>
                 <div class="grid grid-cols-2 gap-2">
                     <div>
@@ -576,7 +577,7 @@
                 <div class="footer-grid">
                   <div class="footer-col brand-col">
                     <div class="footer-brand">
-                      <img src="./assets/img/logo bps.png" alt="Logo BPS" class="footer-logo">
+                      <img src="logo bps.png" alt="Logo BPS" class="footer-logo">
                       <div class="brand-text">
                         <h3>Badan Pusat Statistik</h3>
                         <p>Kabupaten Flores Timur</p>
@@ -617,11 +618,10 @@
                     <h4 class="col-title">Media Sosial</h4>
                     <p class="social-desc">Ikuti kami untuk mendapatkan informasi statistik terbaru.</p>
                     <div class="social-icons">
-                    <a href="https://www.instagram.com/bpsflorestimur?stkn=MXZiYWhxcnFkb2RqcA==" target="_blank" class="social-btn" title="Instagram"><i class="fa-brands fa-instagram"></i></a>
-                    <a href="https://www.facebook.com/profile.php?id=100063912365763&mibextid=rS40aB7S9Ucbxw6v" target="_blank" class="social-btn" title="Facebook"><i class="fa-brands fa-facebook"></i></a>
-                    <a href="#" target="_blank" class="social-btn" title="YouTube"><i class="fa-brands fa-youtube"></i></a>
-                    <a href="#" target="_blank" class="social-btn" title="X (Twitter)"><i class="fa-brands fa-x-twitter"></i></a>
-                    </div>
+                      <a href="#" target="_blank" class="social-btn" title="Instagram"><i class="fa-brands fa-instagram"></i></a>
+                      <a href="#" target="_blank" class="social-btn" title="Facebook"><i class="fa-brands fa-facebook"></i></a>
+                      <a href="#" target="_blank" class="social-btn" title="YouTube"><i class="fa-brands fa-youtube"></i></a>
+                      <a href="#" target="_blank" class="social-btn" title="X (Twitter)"><i class="fa-brands fa-x-twitter"></i></a>
                     </div>
                   </div>
                 </div>

@@ -103,6 +103,19 @@ export async function adminCreateEmployee({ fullName, nip, timKerja, jabatan }) 
   return mapProfile(data)
 }
 
+// Auto-lengkap Nama/Tim/Jabatan di form daftar kalau NIP-nya udah
+// ditambahkan Admin sebelumnya (belum pernah ada yang login).
+export async function lookupEmployeeByNip(nip) {
+  const { data, error } = await supabase
+    .rpc('lookup_unclaimed_employee_by_nip', { p_nip: nip })
+
+  if (error) {
+    console.error('[SIMBAK] Gagal cek NIP:', error.message)
+    return null
+  }
+  return (data && data.length > 0) ? data[0] : null
+}
+
 export async function updateOwnProfile(userId, { fullName, nip, avatarUrl }) {
   const payload = { full_name: fullName, nip }
   if (avatarUrl) payload.avatar_url = avatarUrl

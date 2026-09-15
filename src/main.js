@@ -14,6 +14,7 @@ import {
   completeProfile,
   updateOwnProfile,
   adminCreateEmployee,
+  lookupEmployeeByNip,
   insertActivity,
   updateActivity,
   deleteActivity,
@@ -215,6 +216,44 @@ async function handleLoginSubmit() {
     alert('Gagal login: ' + (err.message || err))
   } finally {
     if (btn) { btn.disabled = false; btn.innerText = originalText }
+  }
+}
+
+// Dipanggil pas pegawai pindah keluar dari field NIP di form daftar.
+// Kalau NIP-nya cocok sama yang sudah ditambahkan Admin (belum pernah
+// login), Nama/Tim/Jabatan otomatis keisi & dikunci.
+async function handleRegNipBlur() {
+  const nipInput = document.getElementById('reg-nip')
+  const nip = nipInput.value.trim()
+  const hint = document.getElementById('reg-nip-hint')
+  const nameEl = document.getElementById('reg-name')
+  const divisionEl = document.getElementById('reg-division')
+  const roleEl = document.getElementById('reg-role')
+
+  if (!nip) {
+    if (hint) hint.classList.add('hidden')
+    return
+  }
+
+  const match = await lookupEmployeeByNip(nip)
+  if (match) {
+    nameEl.value = match.full_name || ''
+    if (match.tim_kerja) divisionEl.value = match.tim_kerja
+    roleEl.value = match.jabatan || ''
+    nameEl.disabled = true
+    divisionEl.disabled = true
+    roleEl.disabled = true
+    if (hint) {
+      hint.innerText = `✓ Data ditemukan untuk NIP ini: ${match.full_name}. Tinggal isi email & password.`
+      hint.className = 'text-[11px] text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg p-2 leading-relaxed'
+      hint.classList.remove('hidden')
+    }
+  } else {
+    // NIP belum dikenali -> pastikan field kebuka lagi buat diisi manual
+    nameEl.disabled = false
+    divisionEl.disabled = false
+    roleEl.disabled = false
+    if (hint) hint.classList.add('hidden')
   }
 }
 
@@ -1006,6 +1045,7 @@ Object.assign(window, {
   handleCompleteProfileSubmit,
   handleLoginSubmit,
   handleRegisterSubmit,
+  handleRegNipBlur,
   toggleSidebar,
   handleThemeToggle,
   openModalProfile,
