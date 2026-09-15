@@ -116,6 +116,18 @@ export async function lookupEmployeeByNip(nip) {
   return (data && data.length > 0) ? data[0] : null
 }
 
+// Perbaikan otomatis: kalau datanya sebenernya udah lengkap tapi flag
+// profile_completed di database masih kebaca false (mis. gara-gara
+// migrasi lama), betulkan diam-diam di background biar konsisten
+// (dan biar muncul di fetchEmployees(), yang filter profile_completed=true).
+export async function markProfileCompleted(userId) {
+  const { error } = await supabase
+    .from('profiles')
+    .update({ profile_completed: true })
+    .eq('user_id', userId)
+  if (error) console.error('[SIMBAK] Gagal auto-fix profile_completed:', error.message)
+}
+
 export async function updateOwnProfile(userId, { fullName, nip, avatarUrl }) {
   const payload = { full_name: fullName, nip }
   if (avatarUrl) payload.avatar_url = avatarUrl

@@ -13,6 +13,7 @@ import {
   fetchProfileByUserId,
   completeProfile,
   updateOwnProfile,
+  markProfileCompleted,
   adminCreateEmployee,
   lookupEmployeeByNip,
   insertActivity,
@@ -79,11 +80,16 @@ async function init() {
 async function handleAuthedSession(session) {
   try {
     const profile = await fetchProfileByUserId(session.user.id)
+    const dataSudahLengkap = profile && profile.nip && profile.nip !== '-' && profile.division && profile.division !== '-' && profile.role && profile.role !== '-'
 
-    if (!profile || !profile.profileCompleted) {
+    if (!profile || (!profile.profileCompleted && !dataSudahLengkap)) {
       pendingSessionUser = session.user
       showCompleteProfileScreen(session.user)
       return
+    }
+
+    if (dataSudahLengkap && !profile.profileCompleted) {
+      markProfileCompleted(session.user.id) // fire-and-forget, tidak perlu ditunggu
     }
 
     currentUser = {
