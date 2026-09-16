@@ -15,7 +15,7 @@ import {
   updateOwnProfile,
   markProfileCompleted,
   adminCreateEmployee,
-  lookupEmployeeByNip,
+  checkNipStatus,
   insertActivity,
   updateActivity,
   deleteActivity,
@@ -226,8 +226,9 @@ async function handleLoginSubmit() {
 }
 
 // Dipanggil pas pegawai pindah keluar dari field NIP di form daftar.
-// Kalau NIP-nya cocok sama yang sudah ditambahkan Admin (belum pernah
-// login), Nama/Tim/Jabatan otomatis keisi & dikunci.
+// 3 kondisi: NIP belum pernah dipakai (form terbuka normal), NIP sudah
+// ditambahkan Admin tapi belum ada login (auto-lengkap & terkunci, siap
+// diklaim), atau NIP sudah py akun AKTIF (ditolak, supaya tidak duplikat).
 async function handleRegNipBlur() {
   const nipInput = document.getElementById('reg-nip')
   const nip = nipInput.value.trim()
@@ -235,31 +236,48 @@ async function handleRegNipBlur() {
   const nameEl = document.getElementById('reg-name')
   const divisionEl = document.getElementById('reg-division')
   const roleEl = document.getElementById('reg-role')
+  const submitBtn = document.getElementById('register-submit-btn')
+
+  if (submitBtn) submitBtn.disabled = false
 
   if (!nip) {
     if (hint) hint.classList.add('hidden')
     return
   }
 
-  const match = await lookupEmployeeByNip(nip)
-  if (match) {
-    nameEl.value = match.full_name || ''
-    if (match.tim_kerja) divisionEl.value = match.tim_kerja
-    roleEl.value = match.jabatan || ''
-    nameEl.disabled = true
-    divisionEl.disabled = true
-    roleEl.disabled = true
-    if (hint) {
-      hint.innerText = `✓ Data ditemukan untuk NIP ini: ${match.full_name}. Tinggal isi email & password.`
-      hint.className = 'text-[11px] text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg p-2 leading-relaxed'
-      hint.classList.remove('hidden')
-    }
-  } else {
-    // NIP belum dikenali -> pastikan field kebuka lagi buat diisi manual
+  const status = await checkNipStatus(nip)
+
+  if (!status) {
+    // NIP belum pernah dipakai sama sekali -> form dibuka normal.
     nameEl.disabled = false
     divisionEl.disabled = false
     roleEl.disabled = false
     if (hint) hint.classList.add('hidden')
+    return
+  }
+
+  if (status.isClaimed) {
+    // NIP ini sudah py akun login aktif -> TOLAK, cegah duplikat.
+    if (submitBtn) submitBtn.disabled = true
+    if (hint) {
+      hint.innerText = `✕ NIP ${nip} sudah terdaftar & aktif atas nama ${status.fullName}. Kalau ini NIP kamu, silakan login lewat tab "Masuk / Login" (lupa password? hubungi Admin).`
+      hint.className = 'text-[11px] text-red-700 bg-red-50 border border-red-200 rounded-lg p-2 leading-relaxed'
+      hint.classList.remove('hidden')
+    }
+    return
+  }
+
+  // NIP sudah ditambahkan Admin, belum ada login -> auto-lengkap & kunci.
+  nameEl.value = status.fullName || ''
+  if (status.timKerja) divisionEl.value = status.timKerja
+  roleEl.value = status.jabatan || ''
+  nameEl.disabled = true
+  divisionEl.disabled = true
+  roleEl.disabled = true
+  if (hint) {
+    hint.innerText = `✓ Data ditemukan untuk NIP ini: ${status.fullName}. Tinggal isi email & password.`
+    hint.className = 'text-[11px] text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg p-2 leading-relaxed'
+    hint.classList.remove('hidden')
   }
 }
 
@@ -280,6 +298,14 @@ async function handleRegisterSubmit() {
     }
     if (password.length < 6) {
       alert('Password minimal 6 karakter!')
+      return
+    }
+
+    // Cek ulang (jaga-jaga event blur ke-skip) -- pastikan NIP belum
+    // dipakai akun aktif lain sebelum benar-benar mendaftar.
+    const nipStatus = await checkNipStatus(nip)
+    if (nipStatus && nipStatus.isClaimed) {
+      alert(`NIP ${nip} sudah terdaftar & aktif atas nama ${nipStatus.fullName}. Tidak bisa dipakai untuk daftar akun baru.`)
       return
     }
 
@@ -662,7 +688,9 @@ async function handleSaveNewEmployee(event) {
     showToast('Pegawai baru berhasil ditambahkan!')
   } catch (err) {
     console.error('[SIMBAK] handleSaveNewEmployee error:', err)
-    showToast('Gagal menambahkan pegawai (cek koneksi/izin akses).')
+    alert(err.message && err.message.startsWith('NIP')
+      ? err.message
+      : 'Gagal menambahkan pegawai (cek koneksi/izin akses).')
   }
 }
 

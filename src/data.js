@@ -83,14 +83,31 @@ export async function completeProfile(userId, { fullName, nip, timKerja, jabatan
 
 // Dipakai Admin untuk menambahkan pegawai langsung dari menu Direktori
 // Pegawai, TANPA akun login (user_id kosong). Kalau pegawai itu nanti
-// daftar sendiri, dia akan dapat baris profil baru yang terpisah --
-// admin tinggal hapus salah satu manual kalau terjadi duplikat.
+// daftar sendiri pakai NIP yang sama, otomatis "nyambung" ke baris ini
+// (lihat migrasi klaim-by-NIP), BUKAN bikin duplikat.
 export async function adminCreateEmployee({ fullName, nip, timKerja, jabatan }) {
+  const trimmedNip = (nip || '').trim()
+
+  if (trimmedNip) {
+    const { data: existingRows, error: checkErr } = await supabase
+      .from('profiles')
+      .select('id, full_name, user_id')
+      .eq('nip', trimmedNip)
+      .limit(1)
+
+    if (checkErr) throw checkErr
+    if (existingRows && existingRows.length > 0) {
+      const existing = existingRows[0]
+      const status = existing.user_id ? 'sudah aktif (sudah punya akun login)' : 'sudah ada di data pegawai (belum ada akun login)'
+      throw new Error(`NIP ${trimmedNip} sudah terdaftar atas nama "${existing.full_name}" -- ${status}. Gunakan NIP lain, atau cek di Direktori Pegawai.`)
+    }
+  }
+
   const { data, error } = await supabase
     .from('profiles')
     .insert({
       full_name: fullName,
-      nip,
+      nip: trimmedNip,
       tim_kerja: timKerja,
       jabatan,
       is_admin: false,
@@ -103,17 +120,29 @@ export async function adminCreateEmployee({ fullName, nip, timKerja, jabatan }) 
   return mapProfile(data)
 }
 
-// Auto-lengkap Nama/Tim/Jabatan di form daftar kalau NIP-nya udah
-// ditambahkan Admin sebelumnya (belum pernah ada yang login).
-export async function lookupEmployeeByNip(nip) {
+// Dipanggil dari form "Daftar Akun Baru" begitu pegawai ngetik NIP.
+// Membedakan 3 kondisi:
+// - null (NIP belum pernah dipakai sama sekali) -> form dibuka normal.
+// - { isClaimed: false, ... } (sudah ditambahkan Admin, belum ada login)
+//   -> form di-autofill & dikunci, siap diklaim lewat pendaftaran ini.
+// - { isClaimed: true, ... } (NIP ini sudah py akun aktif) -> pendaftaran
+//   HARUS ditolak, supaya tidak terjadi duplikat.
+export async function checkNipStatus(nip) {
   const { data, error } = await supabase
-    .rpc('lookup_unclaimed_employee_by_nip', { p_nip: nip })
+    .rpc('check_nip_registration_status', { p_nip: nip })
 
   if (error) {
-    console.error('[SIMBAK] Gagal cek NIP:', error.message)
+    console.error('[SIMBAK] Gagal cek status NIP:', error.message)
     return null
   }
-  return (data && data.length > 0) ? data[0] : null
+  const row = (data && data.length > 0) ? data[0] : null
+  if (!row || !row.exists_row) return null
+  return {
+    isClaimed: !!row.is_claimed,
+    fullName: row.full_name,
+    timKerja: row.tim_kerja,
+    jabatan: row.jabatan
+  }
 }
 
 // Perbaikan otomatis: kalau datanya sebenernya udah lengkap tapi flag
