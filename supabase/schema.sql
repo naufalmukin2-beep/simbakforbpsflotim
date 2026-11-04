@@ -5,24 +5,14 @@
 -- File ini akan:
 -- 1. Menghapus tabel & trigger LAMA (kalau ada) -- termasuk data lama.
 -- 2. Membuat ulang tabel profiles & activities, KOSONG (tanpa data dummy).
--- 3. Memasang aturan: Login Google HANYA untuk 1 email admin. Pegawai lain
---    WAJIB daftar manual (email asli + password).
+-- 3. Memasang aturan: Login Google terbuka untuk semua orang, tapi
+--    status admin HANYA untuk email yang ada di tabel admin_emails
+--    (boleh lebih dari satu). Pegawai juga boleh daftar manual.
 -- 4. Memasang Row Level Security (RLS) yang jelas hak aksesnya.
 --
--- >>> WAJIB: ganti email di bawah ini dengan email Google asli kamu <<<
+-- >>> WAJIB: isi tabel admin_emails di bagian 3b dengan email Google
+--     admin kamu (cari GANTI_DENGAN_EMAIL_GOOGLE_ADMIN) <<<
 -- ============================================================
-
--- ------------------------------------------------------------
--- 0. GANTI INI SESUAI EMAIL GOOGLE ADMIN KAMU
--- ------------------------------------------------------------
--- (dipakai berulang kali di bawah lewat fungsi ini, jadi cukup ganti di 1 tempat)
-create or replace function public.admin_email()
-returns text
-language sql
-immutable
-as $$
-  select 'GANTI_DENGAN_EMAIL_GOOGLE_ADMIN@gmail.com'
-$$;
 
 -- ------------------------------------------------------------
 -- 1. BERSIH-BERSIH TABEL & TRIGGER LAMA
@@ -31,6 +21,9 @@ drop trigger if exists on_auth_user_created on auth.users;
 drop function if exists public.handle_new_user();
 drop table if exists public.activities cascade;
 drop table if exists public.profiles cascade;
+drop table if exists public.admin_emails cascade;
+drop function if exists public.admin_email();
+drop function if exists public.is_configured_admin(text);
 
 create extension if not exists "pgcrypto";
 
@@ -68,14 +61,42 @@ create table public.activities (
 );
 
 -- ------------------------------------------------------------
+-- 3b. DAFTAR ADMIN -- GANTI/tambah baris email di bawah sesuai
+--     email Google admin kamu (boleh lebih dari satu).
+-- ------------------------------------------------------------
+create table if not exists public.admin_emails (
+  email text primary key
+);
+alter table public.admin_emails enable row level security;
+-- Sengaja tidak dikasih policy apapun -- tertutup total dari akses
+-- langsung client, cuma bisa dibaca lewat fungsi security definer
+-- di bawah.
+
+insert into public.admin_emails (email) values
+  ('GANTI_DENGAN_EMAIL_GOOGLE_ADMIN_1@gmail.com'),
+  ('GANTI_DENGAN_EMAIL_GOOGLE_ADMIN_2@gmail.com')
+on conflict (email) do nothing;
+
+create or replace function public.is_configured_admin(p_email text)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1 from public.admin_emails where lower(email) = lower(p_email)
+  )
+$$;
+
+-- ------------------------------------------------------------
 -- 4. TRIGGER: dijalankan SETIAP KALI ada akun auth baru dibuat
 --    (baik lewat Google OAuth maupun daftar manual email/password)
 --
 --    Logikanya:
---    - Kalau daftar via GOOGLE dan emailnya BUKAN admin -> DITOLAK
---      (transaksi dibatalkan, akun tidak pernah tercipta di Supabase Auth).
---    - Kalau daftar via GOOGLE dan emailnya admin -> profil dibuat,
---      is_admin = true, profile_completed = false (nanti dilengkapi
+--    - Daftar via GOOGLE (siapapun boleh) -> profil dibuat, is_admin
+--      cuma true kalau emailnya ada di tabel admin_emails, selain itu
+--      false. profile_completed selalu false dulu (nanti dilengkapi
 --      NIP/Tim Kerja/Jabatan lewat layar "Lengkapi Profil").
 --    - Kalau daftar MANUAL (email/password) pakai email admin -> DITOLAK
 --      (email itu direservasi khusus utk login Google admin).
@@ -88,21 +109,20 @@ create or replace function public.handle_new_user()
 returns trigger as $$
 declare
   v_provider text := coalesce(new.raw_app_meta_data->>'provider', 'email');
-  v_is_admin_email boolean := (lower(new.email) = lower(public.admin_email()));
+  v_is_admin_email boolean := public.is_configured_admin(new.email);
   v_meta jsonb := coalesce(new.raw_user_meta_data, '{}'::jsonb);
+  v_claimed_id uuid;
 begin
   if v_provider = 'google' then
-    if not v_is_admin_email then
-      raise exception 'SIMBAK_ONLY_ADMIN_GOOGLE: Login Google hanya diizinkan untuk akun admin.';
-    end if;
-
+    -- SEMUA akun Google boleh masuk. is_admin murni dari tabel
+    -- admin_emails, TIDAK otomatis true cuma karena pakai Google.
     insert into public.profiles (user_id, email, full_name, avatar_url, is_admin, profile_completed)
     values (
       new.id,
       new.email,
       coalesce(v_meta->>'full_name', v_meta->>'name', new.email),
       v_meta->>'avatar_url',
-      true,
+      v_is_admin_email,
       false
     )
     on conflict (user_id) do nothing;
@@ -113,22 +133,37 @@ begin
       raise exception 'SIMBAK_EMAIL_RESERVED_FOR_ADMIN: Email ini direservasi khusus untuk login Google admin.';
     end if;
 
-    insert into public.profiles (
-      user_id, email, full_name, nip, tim_kerja, jabatan, avatar_url,
-      is_admin, profile_completed
-    )
-    values (
-      new.id,
-      new.email,
-      coalesce(v_meta->>'full_name', new.email),
-      v_meta->>'nip',
-      v_meta->>'tim_kerja',
-      v_meta->>'jabatan',
-      null,
-      false,
-      true
-    )
-    on conflict (user_id) do nothing;
+    -- Coba klaim baris pegawai yang SUDAH ditambahkan Admin lewat
+    -- "+ Tambah Pegawai" (NIP sama, belum pernah ada login/user_id kosong)
+    -- -- supaya TIDAK terjadi duplikat profil.
+    update public.profiles
+    set user_id = new.id,
+        email = new.email,
+        profile_completed = true
+    where user_id is null
+      and nip is not null
+      and trim(nip) = trim(v_meta->>'nip')
+    returning id into v_claimed_id;
+
+    if v_claimed_id is null then
+      -- Tidak ada baris yang cocok -> pegawai daftar sendiri dari nol.
+      insert into public.profiles (
+        user_id, email, full_name, nip, tim_kerja, jabatan, avatar_url,
+        is_admin, profile_completed
+      )
+      values (
+        new.id,
+        new.email,
+        coalesce(v_meta->>'full_name', new.email),
+        v_meta->>'nip',
+        v_meta->>'tim_kerja',
+        v_meta->>'jabatan',
+        null,
+        false,
+        true
+      )
+      on conflict (user_id) do nothing;
+    end if;
   end if;
 
   return new;
@@ -199,11 +234,18 @@ create policy "profiles_select_authenticated"
 
 -- Admin boleh menambahkan pegawai baru secara langsung (tanpa akun
 -- login dulu -- user_id NULL, nanti pegawai itu daftar sendiri
--- terpisah kalau perlu login).
+-- terpisah kalau perlu login). User biasa juga boleh "insert" baris
+-- profilnya SENDIRI dengan is_admin tetap false -- ini dibutuhkan
+-- karena proses "Lengkapi Profil" pakai UPSERT, dan Postgres tetap
+-- mengecek izin INSERT walau ujungnya jadi UPDATE (baris sudah ada).
 drop policy if exists "profiles_insert_admin" on public.profiles;
-create policy "profiles_insert_admin"
+drop policy if exists "profiles_insert_admin_or_self" on public.profiles;
+create policy "profiles_insert_admin_or_self"
   on public.profiles for insert
-  with check (public.is_current_user_admin());
+  with check (
+    public.is_current_user_admin()
+    or (auth.uid() = user_id and coalesce(is_admin, false) = false)
+  );
 
 -- User boleh update profil miliknya sendiri (nama, foto, dll -- kolom
 -- is_admin & user_id sudah dikunci oleh trigger di atas). Admin boleh
@@ -268,30 +310,14 @@ create policy "activities_delete_admin"
 -- ============================================================
 -- SELESAI. Tabel profiles & activities sengaja KOSONG (tanpa seed).
 -- Langkah selanjutnya:
--- 1. Ganti email di public.admin_email() di atas, lalu jalankan ulang
---    HANYA bagian "create or replace function public.admin_email()"
---    kalau suatu saat perlu ganti admin.
+-- 1. Kalau suatu saat perlu tambah/hapus admin, tinggal:
+--      insert into public.admin_emails (email) values ('email-baru@gmail.com');
+--      delete from public.admin_emails where email = 'email-lama@gmail.com';
+--    Tidak perlu jalankan ulang seluruh file ini.
 -- 2. Login pertama kali lewat tombol "Lanjutkan dengan Google" pakai
---    email admin itu -> otomatis is_admin = true.
+--    email admin -> otomatis is_admin = true. Email lain -> pegawai biasa.
 -- 3. Pegawai lain daftar lewat form "Daftar Akun Baru" (email asli +
 --    password) -> otomatis is_admin = false, langsung lengkap.
 -- 4. Admin juga bisa menambahkan pegawai langsung dari menu
 --    "Direktori Pegawai > + Tambah Pegawai" (tanpa akun login dulu).
 -- ============================================================
-
-
--- diagnostis check
--- Cek 1: email admin yang KESIMPAN di database sekarang
-select public.admin_email() as configured_admin_email;
-
--- Cek 2: 5 baris profil paling baru -- buat lihat apakah baris baru
--- kebentuk pas kamu coba "Lengkapi Profil" tadi, dan is_admin-nya berapa
-select id, user_id, email, is_admin, profile_completed, nip, full_name, created_at
-from public.profiles
-order by created_at desc
-limit 5;
-
--- Cek 3: isi lengkap policy insert yang aktif sekarang di tabel profiles
-select policyname, cmd, qual, with_check
-from pg_policies
-where schemaname = 'public' and tablename = 'profiles';

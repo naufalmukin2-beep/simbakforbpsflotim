@@ -16,6 +16,7 @@ import {
   markProfileCompleted,
   adminCreateEmployee,
   checkNipStatus,
+  claimProfileByNip,
   insertActivity,
   updateActivity,
   deleteActivity,
@@ -129,6 +130,70 @@ function showCompleteProfileScreen(googleUser) {
   const meta = googleUser.user_metadata || {}
   document.getElementById('cp-google-photo').src = meta.avatar_url || DEFAULT_PHOTO
   document.getElementById('cp-input-name').value = meta.full_name || meta.name || ''
+
+  // reset kondisi sisa dari percobaan sebelumnya
+  ;['cp-input-name', 'cp-input-division', 'cp-input-role'].forEach(id => {
+    document.getElementById(id).disabled = false
+  })
+  document.getElementById('cp-submit-btn').disabled = false
+  document.getElementById('cp-nip-hint').classList.add('hidden')
+}
+
+// Dipanggil pas NIP di layar "Lengkapi Profil" selesai diketik.
+// NIP belum dipakai -> isi manual; sudah ditambahkan Admin (belum login)
+// -> auto-lengkap & diklaim saat simpan; sudah dipakai akun aktif -> ditolak.
+async function handleCpNipBlur() {
+  const nip = document.getElementById('cp-input-nip').value.trim()
+  const hint = document.getElementById('cp-nip-hint')
+  const nameEl = document.getElementById('cp-input-name')
+  const divisionEl = document.getElementById('cp-input-division')
+  const roleEl = document.getElementById('cp-input-role')
+  const submitBtn = document.getElementById('cp-submit-btn')
+
+  const unlock = () => {
+    if (nameEl.disabled) {
+      const meta = pendingSessionUser?.user_metadata || {}
+      nameEl.value = meta.full_name || meta.name || ''
+      roleEl.value = ''
+    }
+    nameEl.disabled = false
+    divisionEl.disabled = false
+    roleEl.disabled = false
+  }
+
+  submitBtn.disabled = false
+  if (!nip) {
+    unlock()
+    hint.classList.add('hidden')
+    return
+  }
+
+  const status = await checkNipStatus(nip)
+
+  if (!status) {
+    unlock()
+    hint.classList.add('hidden')
+    return
+  }
+
+  if (status.isClaimed) {
+    unlock()
+    submitBtn.disabled = true
+    hint.innerText = `✕ NIP ${nip} sudah terdaftar & aktif atas nama ${status.fullName}. Pastikan NIP-nya benar, atau hubungi Admin.`
+    hint.className = 'text-[11px] text-red-700 bg-red-50 border border-red-200 rounded-lg p-2 leading-relaxed'
+    hint.classList.remove('hidden')
+    return
+  }
+
+  nameEl.value = status.fullName || ''
+  if (status.timKerja) divisionEl.value = status.timKerja
+  roleEl.value = status.jabatan || ''
+  nameEl.disabled = true
+  divisionEl.disabled = true
+  roleEl.disabled = true
+  hint.innerText = `✓ Data ditemukan untuk NIP ini: ${status.fullName}. Tinggal klik simpan.`
+  hint.className = 'text-[11px] text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg p-2 leading-relaxed'
+  hint.classList.remove('hidden')
 }
 
 async function handleGoogleSignIn() {
@@ -163,13 +228,28 @@ async function handleCompleteProfileSubmit(event) {
     }
 
     const meta = pendingSessionUser?.user_metadata || {}
-    const profile = await completeProfile(pendingSessionUser.id, {
-      fullName,
-      nip,
-      timKerja: division,
-      jabatan: role,
-      avatarUrl: meta.avatar_url || meta.picture || DEFAULT_PHOTO
-    })
+
+    // Cek NIP: tolak kalau sudah dipakai akun aktif, klaim kalau sudah
+    // ditambahkan Admin (belum login), selain itu simpan profil baru.
+    const nipStatus = await checkNipStatus(nip)
+    if (nipStatus && nipStatus.isClaimed) {
+      alert(`NIP ${nip} sudah terdaftar & aktif atas nama ${nipStatus.fullName}. Tidak bisa dipakai lagi.`)
+      return
+    }
+
+    let profile = null
+    if (nipStatus && !nipStatus.isClaimed) {
+      profile = await claimProfileByNip(nip)
+    }
+    if (!profile) {
+      profile = await completeProfile(pendingSessionUser.id, {
+        fullName,
+        nip,
+        timKerja: division,
+        jabatan: role,
+        avatarUrl: meta.avatar_url || meta.picture || DEFAULT_PHOTO
+      })
+    }
 
     if (!profile) {
       throw new Error('Data profil tidak berhasil disimpan di database.')
@@ -1080,6 +1160,7 @@ Object.assign(window, {
   handleLoginSubmit,
   handleRegisterSubmit,
   handleRegNipBlur,
+  handleCpNipBlur,
   toggleSidebar,
   handleThemeToggle,
   openModalProfile,

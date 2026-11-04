@@ -145,6 +145,15 @@ export async function checkNipStatus(nip) {
   }
 }
 
+// Dipakai di layar "Lengkapi Profil" (login Google): kalau NIP-nya sudah
+// ditambahkan Admin dan belum ada login, akun ini disambungkan ke baris itu
+// (bukan bikin duplikat). Return null kalau tidak ada yang cocok.
+export async function claimProfileByNip(nip) {
+  const { data, error } = await supabase.rpc('claim_profile_by_nip', { p_nip: nip })
+  if (error) throw error
+  return data ? mapProfile(data) : null
+}
+
 // Perbaikan otomatis: kalau datanya sebenernya udah lengkap tapi flag
 // profile_completed di database masih kebaca false (mis. gara-gara
 // migrasi lama), betulkan diam-diam di background biar konsisten

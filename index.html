@@ -211,7 +211,8 @@
             <form id="form-complete-profile" onsubmit="handleCompleteProfileSubmit(event)" class="p-6 space-y-4">
                 <div>
                     <label class="block text-xs font-bold text-slate-700 uppercase mb-1">NIP (18 Digit)</label>
-                    <input type="text" id="cp-input-nip" required placeholder="1995xxxxxxxxxxxxxx" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-bps-blue focus:outline-none">
+                    <input type="text" id="cp-input-nip" onblur="handleCpNipBlur()" required placeholder="1995xxxxxxxxxxxxxx" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-bps-blue focus:outline-none">
+                    <p id="cp-nip-hint" class="hidden mt-1.5"></p>
                 </div>
                 <div>
                     <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Nama Lengkap & Gelar</label>
